@@ -2,7 +2,6 @@ package plugins
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"github.com/miekg/dns"
@@ -31,6 +30,6 @@ func (q *QueryLoggerPlugin) Configure(ctx context.Context, config map[string]int
 }
 
 func (q *QueryLoggerPlugin) Query(ctx context.Context, msg *dns.Msg) error {
-	fmt.Printf("Query: \n%v\n", msg.String())
+	//fmt.Printf("Query: \n%v\n", msg.String())
 	return nil
 }

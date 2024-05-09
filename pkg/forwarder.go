@@ -5,12 +5,11 @@ import (
 	"io"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/VictoriaMetrics/metrics"
 	plugins "github.com/jdamick/dns-forwarder/pkg/plugins"
-	log "github.com/rs/zerolog/log"
-
-	"github.com/hjson/hjson-go/v4"
 	"github.com/miekg/dns"
+	log "github.com/rs/zerolog/log"
 )
 
 type Forwarder struct {
@@ -23,7 +22,7 @@ func NewForwarder() *Forwarder {
 
 func (f *Forwarder) Configure(conf []byte) error {
 	var confMap map[string]interface{}
-	err := hjson.Unmarshal(conf, &confMap)
+	err := toml.Unmarshal(conf, &confMap)
 	if err != nil {
 		return err
 	}
@@ -113,6 +112,7 @@ func (f *Forwarder) QueryHandler(ctx context.Context, msg *dns.Msg) (*dns.Msg, e
 				return nil, nil
 			}
 			if err != nil {
+				log.Error().Err(err).Msg("query processing error")
 				return nil, err
 			}
 		}
@@ -133,6 +133,7 @@ func (f *Forwarder) ResponseHandler(ctx context.Context, msg *dns.Msg) (*dns.Msg
 				return nil, nil
 			}
 			if err != nil {
+				log.Error().Err(err).Msg("response processing error")
 				return nil, err
 			}
 		}

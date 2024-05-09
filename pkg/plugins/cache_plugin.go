@@ -78,13 +78,12 @@ func (c *CachePlugin) Configure(ctx context.Context, config map[string]interface
 		// }).
 		WithTTL(c.config.StaleDuration).
 		DeletionListener(func(k string, m *msgCacheEntry, cause otter.DeletionCause) {
-			fmt.Printf("\n\nHERERE!!!!!!!!!!\n\n")
 			log.Debug().Str("key", k).Msg("Cache Deletion Listener")
 		}).
 		Build()
 
 	c.cache = cache
-
+	log.Debug().Msgf("CachePlugin: %#v", c.config)
 	return err
 }
 
@@ -170,7 +169,6 @@ func (c *CachePlugin) Response(ctx context.Context, msg *dns.Msg) error {
 	}
 
 	ttl := FindTTL(msg)
-	log.Error().Msgf("TTL: %v, Rcode: %v", ttl, msg.Rcode)
 	if ttl == 0 {
 		return nil
 	}
@@ -185,15 +183,17 @@ func (c *CachePlugin) Response(ctx context.Context, msg *dns.Msg) error {
 	}
 
 	key, err := c.CacheKey(ctx, msg)
-	log.Error().Msgf("CacheKey err: %v", err)
 	if err != nil {
 		return err
 	}
-	log.Error().Msgf("Set: %v", key)
 	if c.cache.Set(key, &msgCacheEntry{msg: msg, received: time.Now(), ttl: ttl}) {
-		log.Debug().Str("key", key).Dur("ttl", ttl).Msg("Cache set")
+		if log.Debug().Enabled() {
+			log.Debug().Str("key", key).Str("ttl", ttl.String()).Msg("Cache set")
+		}
 	} else {
-		log.Debug().Str("key", key).Dur("ttl", ttl).Msg("Cache set failed")
+		if log.Debug().Enabled() {
+			log.Debug().Str("key", key).Str("ttl", ttl.String()).Msg("Cache set failed")
+		}
 	}
 	return nil
 }

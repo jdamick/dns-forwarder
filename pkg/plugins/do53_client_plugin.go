@@ -7,13 +7,15 @@ import (
 	"net"
 	"time"
 
+	iradix "github.com/hashicorp/go-immutable-radix/v2"
 	"github.com/miekg/dns"
 	log "github.com/rs/zerolog/log"
 )
 
 type DO53ClientPlugin struct {
-	config  DO53ClientPluginConfig
+	//config  DO53ClientPluginConfig
 	handler Handler
+	clients *iradix.Tree[*do53client]
 }
 
 const (
@@ -29,7 +31,7 @@ type DO53ClientPluginConfig struct {
 
 // Register this plugin with the DNS Forwarder.
 func init() {
-	RegisterPlugin(&DO53ClientPlugin{})
+	RegisterPlugin(&DO53ClientPlugin{clients: iradix.New[*do53client]()})
 }
 
 func (d *DO53ClientPlugin) Name() string {
@@ -44,20 +46,43 @@ func (d *DO53ClientPlugin) PrintHelp(out io.Writer) {
 // Configure the plugin.
 func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("DO53ClientPlugin.Configure")
-	if err := UnmarshalConfiguration(config, &d.config); err != nil {
-		return err
-	}
-	if d.config.Timeout != "" {
-		var err error
-		d.config.timeoutDuration, err = time.ParseDuration(d.config.Timeout)
-		if err != nil {
+
+	// get each domain configured
+	for domain, cfg := range config {
+		if cfg == nil {
+			continue
+		}
+		log.Debug().Str("domain", domain).Any("config", cfg).Msg("DO53ClientPlugin.Configure")
+
+		client := &do53client{domain: domain}
+
+		if err := UnmarshalConfiguration(cfg.(map[string]interface{}), &client.config); err != nil {
 			return err
 		}
+		if client.config.Timeout != "" {
+			var err error
+			client.config.timeoutDuration, err = time.ParseDuration(client.config.Timeout)
+			if err != nil {
+				return err
+			}
+		}
+		if client.config.timeoutDuration == 0 {
+			client.config.timeoutDuration = defaultDO53Timeout
+		}
+
+		revDomain := ReverseString(dns.CanonicalName(domain))
+		var ok bool
+		d.clients, _, ok = d.clients.Insert([]byte(revDomain), client)
+		if !ok {
+			it := d.clients.Root().Iterator()
+			for k, client, ok := it.Next(); ok; k, client, ok = it.Next() {
+				log.Debug().Str("k", string(k)).Msgf("tree: %v", client)
+			}
+			//	return fmt.Errorf("failed to insert domain: %v as %v", domain, revDomain)
+		}
+		log.Debug().Msgf("DO53Client: %#v", client.config)
 	}
-	if d.config.timeoutDuration == 0 {
-		d.config.timeoutDuration = defaultDO53Timeout
-	}
-	log.Debug().Msgf("DO53ClientPluginConfig: %#v\n", d.config)
+	log.Debug().Msgf("DO53ClientPluginConfig")
 	return nil
 }
 
@@ -65,15 +90,59 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 func (d *DO53ClientPlugin) StartClient(ctx context.Context, handler Handler) error {
 	log.Info().Msg("Starting DO53 Client")
 	d.handler = handler
+	it := d.clients.Root().Iterator()
+	for k, client, ok := it.Next(); ok; k, client, ok = it.Next() {
+		log.Debug().Str("domain", string(k)).Msg("Starting DO53 Client")
+		if err := client.StartClient(ctx, handler); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Stop the protocol plugin.
 func (d *DO53ClientPlugin) StopClient(ctx context.Context) error {
+	it := d.clients.Root().Iterator()
+	for k, client, ok := it.Next(); ok; k, client, ok = it.Next() {
+		log.Debug().Str("domain", string(k)).Msg("Stopping DO53 Client")
+		if err := client.StopClient(ctx); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (d *DO53ClientPlugin) Query(ctx context.Context, msg *dns.Msg) error {
+	if len(msg.Question) == 0 {
+		return nil
+	}
+	qname := msg.Question[0].Name
+	revDomain := ReverseString(dns.CanonicalName(qname))
+	if _, client, ok := d.clients.Root().LongestPrefix([]byte(revDomain)); ok {
+		return client.Query(ctx, msg)
+	}
+	return nil
+}
+
+type do53client struct {
+	domain  string
+	config  DO53ClientPluginConfig
+	handler Handler
+}
+
+// Start the protocol plugin.
+func (d *do53client) StartClient(ctx context.Context, handler Handler) error {
+	log.Info().Msg("Starting DO53 Client")
+	d.handler = handler
+	return nil
+}
+
+// Stop the protocol plugin.
+func (d *do53client) StopClient(ctx context.Context) error {
+	return nil
+}
+
+func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
 	log.Debug().Msgf("DO53ClientPlugin.Query: %v\n", msg)
 	msg.Compress = true
 	q, err := msg.Pack()

@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	hjson "github.com/hjson/hjson-go/v4"
+	"github.com/BurntSushi/toml"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
@@ -115,11 +116,14 @@ func RegisterPlugin(plugin Plugin) {
 }
 
 func UnmarshalConfiguration(config map[string]interface{}, v interface{}) error {
-	conf, err := hjson.Marshal(config)
+	buf := new(bytes.Buffer)
+	err := toml.NewEncoder(buf).Encode(config)
 	if err != nil {
 		return err
 	}
-	return hjson.Unmarshal(conf, v)
+	//return toml.NewEncoder(buf).Encode(v)
+	_, err = toml.NewDecoder(buf).Decode(v)
+	return err
 }
 
 func RunForAllPlugins(f func(p Plugin) error) error {

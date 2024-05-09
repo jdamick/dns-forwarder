@@ -43,11 +43,12 @@ const (
 
 // Configure the plugin.
 func (d *DO53ServerPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
+	log.Debug().Any("config", config).Msg("DO53ServerPluginConfig.Configure")
 	d.config.PoolSize = defaultDo53PoolSize
 	if err := UnmarshalConfiguration(config, &d.config); err != nil {
 		return err
 	}
-	log.Debug().Msgf("DO53ClientPluginConfig: %#v\n", d.config)
+	log.Debug().Msgf("DO53ServerPluginConfig: %#v", d.config)
 	return nil
 }
 
@@ -69,8 +70,8 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 		r := input.(*reqResp)
 		qctx := context.WithValue(CreateNewHandlerCtx(), responseWriterKey, r.resp)
 		ResponseMetadata(qctx)[responseWritten] = false
-		_, err := handler.Handle(qctx, r.req)
-		if err != nil && !ResponseMetadata(qctx)[responseWritten].(bool) {
+		handler.Handle(qctx, r.req)
+		if !ResponseMetadata(qctx)[responseWritten].(bool) {
 			d.Response(qctx, synthesizeErrorResponse(r.req))
 		}
 
@@ -87,6 +88,7 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 		return err
 	}
 	d.tcpServer = tcpSrvr
+	log.Info().Msgf("Started DO53 TCP Server on %s", d.config.Listen)
 
 	udpSrvr, err := d.ListenUDP()
 	if err != nil {
@@ -95,6 +97,7 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 		return err
 	}
 	d.udpServer = udpSrvr
+	log.Info().Msgf("Started DO53 UDP Server on %s", d.config.Listen)
 
 	return nil
 }
@@ -131,6 +134,8 @@ func (d *DO53ServerPlugin) ListenTCP() (*dns.Server, error) {
 		ReadTimeout:       time.Second,
 		WriteTimeout:      time.Second,
 		NotifyStartedFunc: waitLock.Unlock,
+		ReusePort:         true,
+		ReuseAddr:         true,
 		Handler:           dns.HandlerFunc(d.handleIncoming)}
 	waitLock.Lock()
 
@@ -159,6 +164,9 @@ func (d *DO53ServerPlugin) ListenUDP() (*dns.Server, error) {
 		ReadTimeout:       time.Second,
 		WriteTimeout:      time.Second,
 		NotifyStartedFunc: waitLock.Unlock,
+		ReusePort:         true,
+		ReuseAddr:         true,
+		UDPSize:           4096,
 		Handler:           dns.HandlerFunc(d.handleIncoming)}
 	waitLock.Lock()
 
