@@ -55,6 +55,7 @@ func (q *CachePlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (c *CachePlugin) PrintHelp(out io.Writer) {
+	PrintPluginHelp(c.Name(), &c.config, out)
 }
 
 // Configure the plugin.

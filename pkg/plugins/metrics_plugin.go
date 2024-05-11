@@ -29,6 +29,7 @@ func (q *MetricsPlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (c *MetricsPlugin) PrintHelp(out io.Writer) {
+	PrintPluginHelp(c.Name(), &c.config, out)
 }
 
 type MetricsPluginConfig struct {

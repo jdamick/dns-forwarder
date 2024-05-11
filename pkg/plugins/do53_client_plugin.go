@@ -40,7 +40,7 @@ func (d *DO53ClientPlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (d *DO53ClientPlugin) PrintHelp(out io.Writer) {
-	out.Write([]byte("DO53ClientPlugin\n"))
+	PrintPluginHelp(d.Name(), &DO53ClientPluginConfig{}, out)
 }
 
 // Configure the plugin.

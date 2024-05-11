@@ -20,6 +20,15 @@ func NewForwarder() *Forwarder {
 	return &Forwarder{configuredPlugins: make(map[string]plugins.Plugin)}
 }
 
+func (f *Forwarder) PrintHelp(pluginName string) {
+	plugins.RunForAllPlugins(func(p plugins.Plugin) error {
+		if p.Name() == pluginName {
+			p.PrintHelp(os.Stdout)
+		}
+		return nil
+	})
+}
+
 func (f *Forwarder) Configure(conf []byte) error {
 	var confMap map[string]interface{}
 	err := toml.Unmarshal(conf, &confMap)
@@ -27,14 +36,11 @@ func (f *Forwarder) Configure(conf []byte) error {
 		return err
 	}
 	ctx := context.Background()
-	//fmt.Printf("confMap: %v\n", confMap)
 
 	err = plugins.RunForAllPlugins(func(p plugins.Plugin) error {
-		//fmt.Printf("p: %v\n", p.Name())
 		if v, ok := confMap[p.Name()]; ok {
 			// might be an array... todo
 			nestedConf := v.(map[string]interface{})
-			//fmt.Printf("%v nestConf: %#v\n", p.Name(), nestedConf)
 			err = p.Configure(ctx, nestedConf)
 			if err != nil {
 				return err

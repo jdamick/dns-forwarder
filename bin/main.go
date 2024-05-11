@@ -52,16 +52,13 @@ func main() {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	//if true {
-	//		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	//	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-	//}
 
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 	fs.SetOutput(os.Stdout)
 	svcFlag := fs.String("service", "", "Control the system service ("+strings.Join(service.ControlAction[:], ", ")+")")
 	logLevel := fs.String("loglevel", "info", "Log level (debug, info, warn, error, fatal, panic)")
 	configFile := fs.String("config", name+".toml", "configuration file (dns-forwarder.toml)")
+	pluginHelp := fs.String("pluginConfig", "", "print configuration help for a plugin")
 	//debug := flag.Bool("debug", false, "Enable Debug Mode")
 	fs.Parse(os.Args[1:])
 
@@ -72,6 +69,11 @@ func main() {
 	zerolog.SetGlobalLevel(lvl)
 	if lvl == zerolog.DebugLevel {
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
+	}
+
+	if pluginHelp != nil && *pluginHelp != "" {
+		dnsforwarder.NewForwarder().PrintHelp(*pluginHelp)
+		return
 	}
 
 	svcConfig := &service.Config{

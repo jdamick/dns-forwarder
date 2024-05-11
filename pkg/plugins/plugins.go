@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -121,9 +122,29 @@ func UnmarshalConfiguration(config map[string]interface{}, v interface{}) error 
 	if err != nil {
 		return err
 	}
-	//return toml.NewEncoder(buf).Encode(v)
 	_, err = toml.NewDecoder(buf).Decode(v)
 	return err
+}
+
+// Add a "comment" tag to the plugin configuration struct to provide help
+func PrintPluginHelp(pluginName string, config interface{}, out io.Writer) {
+	b := strings.Builder{}
+	for i := 0; i < 50; i++ {
+		b.WriteRune('-')
+	}
+	b.WriteString("\n[" + pluginName + "]\n")
+	if config != nil {
+		el := reflect.TypeOf(config).Elem()
+		for i := el.NumField() - 1; i >= 0; i-- {
+			field := el.Field(i)
+			b.WriteString(field.Name + "=(" + field.Type.String() + ") # " + field.Tag.Get("comment") + "\n")
+		}
+	}
+	for i := 0; i < 50; i++ {
+		b.WriteRune('-')
+	}
+	b.WriteString("\n")
+	out.Write([]byte(b.String()))
 }
 
 func RunForAllPlugins(f func(p Plugin) error) error {

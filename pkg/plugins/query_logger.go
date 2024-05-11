@@ -24,7 +24,7 @@ func (q *QueryLoggerPlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (q *QueryLoggerPlugin) PrintHelp(out io.Writer) {
-
+	PrintPluginHelp(q.Name(), nil, out)
 }
 
 // Configure the plugin.

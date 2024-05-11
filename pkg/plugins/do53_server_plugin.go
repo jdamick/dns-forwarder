@@ -29,7 +29,7 @@ func (d *DO53ServerPlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (d *DO53ServerPlugin) PrintHelp(out io.Writer) {
-	out.Write([]byte("DO53ServerPlugin\n"))
+	PrintPluginHelp(d.Name(), &d.config, out)
 }
 
 type DO53ServerPluginConfig struct {
