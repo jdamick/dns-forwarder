@@ -69,6 +69,11 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 	p, err := ants.NewMultiPoolWithFunc(10, d.config.PoolSize, func(input interface{}) {
 		r := input.(*reqResp)
 		qctx := context.WithValue(CreateNewHandlerCtx(), responseWriterKey, r.resp)
+
+		// todo make part of CreateNewHandlerCtx?
+		QueryMetadata(qctx)["LocalAddr"] = r.resp.LocalAddr()
+		QueryMetadata(qctx)["RemoteAddr"] = r.resp.RemoteAddr()
+
 		ResponseMetadata(qctx)[responseWritten] = false
 		handler.Handle(qctx, r.req)
 		if !ResponseMetadata(qctx)[responseWritten].(bool) {

@@ -143,7 +143,7 @@ func (d *do53client) StopClient(ctx context.Context) error {
 }
 
 func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
-	log.Debug().Msgf("DO53ClientPlugin.Query: %v\n", msg)
+	//log.Debug().Msgf("DO53ClientPlugin.Query: %v\n", msg)
 	msg.Compress = true
 	q, err := msg.Pack()
 	if err != nil {
@@ -152,17 +152,17 @@ func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
 	// todo upstream array..
 	var resp []byte
 	resp, _ /*rtt*/, err = udpQuery(d.config.Upstream[0], d.config.timeoutDuration, q)
-	log.Debug().Msgf("DO53ClientPlugin resp: %v err: %v\n", resp, err)
+	//log.Debug().Msgf("DO53ClientPlugin resp: %v err: %v\n", resp, err)
 
 	respMsg := &dns.Msg{}
 	respMsg.Compress = true
 	if err == nil {
 		err = respMsg.Unpack(resp)
 	}
-	log.Debug().Msgf("DO53ClientPlugin resp2: %v\n", respMsg)
-	log.Debug().Msgf("respMsg.Truncated: %v err: %v\n", respMsg.Truncated, err)
+	//log.Debug().Msgf("DO53ClientPlugin resp2: %v\n", respMsg)
+	//log.Debug().Msgf("respMsg.Truncated: %v err: %v\n", respMsg.Truncated, err)
 	if respMsg.Truncated || (d.config.AlwaysRetryOverTcp && err != nil) {
-		log.Debug().Msgf("Trying over TCP\n")
+		log.Debug().Msgf("trying over TCP\n")
 		// is resp is truncated or some udp error, try tcp..
 		resp, _ /*rtt*/, err = tcpQuery(d.config.Upstream[0], d.config.timeoutDuration, q)
 		if err != nil {

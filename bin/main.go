@@ -17,12 +17,13 @@ func init() {
 }
 
 type DNSForwarderServer struct {
-	forwarder *dnsforwarder.Forwarder
+	configFile string
+	forwarder  *dnsforwarder.Forwarder
 }
 
 func (p *DNSForwarderServer) Start(s service.Service) error {
 	p.forwarder = dnsforwarder.NewForwarder()
-	c, err := os.Open("test.toml")
+	c, err := os.Open(p.configFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to open file")
 	}
@@ -60,6 +61,7 @@ func main() {
 	fs.SetOutput(os.Stdout)
 	svcFlag := fs.String("service", "", "Control the system service ("+strings.Join(service.ControlAction[:], ", ")+")")
 	logLevel := fs.String("loglevel", "info", "Log level (debug, info, warn, error, fatal, panic)")
+	configFile := fs.String("config", name+".toml", "configuration file (dns-forwarder.toml)")
 	//debug := flag.Bool("debug", false, "Enable Debug Mode")
 	fs.Parse(os.Args[1:])
 
@@ -78,7 +80,7 @@ func main() {
 		Description: "DNS Forwarder",
 	}
 
-	dnsSrvr := &DNSForwarderServer{}
+	dnsSrvr := &DNSForwarderServer{configFile: *configFile}
 	s, err := service.New(dnsSrvr, svcConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("service creation failed")

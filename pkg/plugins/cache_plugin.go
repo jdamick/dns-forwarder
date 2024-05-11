@@ -187,13 +187,9 @@ func (c *CachePlugin) Response(ctx context.Context, msg *dns.Msg) error {
 		return err
 	}
 	if c.cache.Set(key, &msgCacheEntry{msg: msg, received: time.Now(), ttl: ttl}) {
-		if log.Debug().Enabled() {
-			log.Debug().Str("key", key).Str("ttl", ttl.String()).Msg("Cache set")
-		}
+		log.Debug().Str("key", key).Stringer("ttl", ttl).Msg("Cache set")
 	} else {
-		if log.Debug().Enabled() {
-			log.Debug().Str("key", key).Str("ttl", ttl.String()).Msg("Cache set failed")
-		}
+		log.Debug().Str("key", key).Stringer("ttl", ttl).Msg("Cache set failed")
 	}
 	return nil
 }
