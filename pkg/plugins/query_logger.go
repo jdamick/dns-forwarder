@@ -51,26 +51,19 @@ func (q *QueryLoggerPlugin) Query(ctx context.Context, msg *dns.Msg) error {
 
 func (c *QueryLoggerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
 	LogRfc8427Style(ctx, msg)
+	LogTextStyle(ctx, msg)
 	return nil
 }
 
-func boolToUint8(val bool) uint8 {
-	if val {
-		return 1
-	}
-	return 0
-}
-
-var emptyQuestion = dns.Question{Name: emptyValue, Qtype: dns.TypeNone, Qclass: dns.ClassNONE}
-
-func safeQuestion(msg *dns.Msg) *dns.Question {
-	if len(msg.Question) > 0 {
-		return &msg.Question[0]
-	}
-	return &emptyQuestion
-}
-
 func LogRfc8427Style(ctx context.Context, msg *dns.Msg) error {
+	return LogRfc8427StyleWithPrefix("", "", ctx, msg)
+}
+
+func LogMsgWithPrefix(prefixKey, prefixVal string, ctx context.Context, msg *dns.Msg) error {
+	return LogRfc8427StyleWithPrefix("", "", ctx, msg)
+}
+
+func LogRfc8427StyleWithPrefix(prefixKey, prefixVal string, ctx context.Context, msg *dns.Msg) error {
 	question := safeQuestion(msg)
 	proto, srcIp := remoteAddr(ctx)
 	opt := msg.IsEdns0()
@@ -99,12 +92,39 @@ func LogRfc8427Style(ctx context.Context, msg *dns.Msg) error {
 		Uint16("QCLASS", question.Qclass).
 		Str("QCLASSname", dns.Class(question.Qclass).String())
 
+	if prefixKey != "" && prefixVal != "" {
+		logInfo = logInfo.Str(prefixKey, prefixVal)
+	}
+
 	if msg.MsgHdr.Response {
 		logInfo.Msg("responseMessage")
 		return nil
 	}
 
 	logInfo.Msg("queryMessage")
+	return nil
+}
+
+// Similar to CoreDNS Format:
+// 	CommonLogFormat = `{remote}:{port} ` + replacer.EmptyValue + ` {>id} "{type} {class} {name} {proto} {size} {>do} {>bufsize}" {rcode} {>rflags} {rsize} {duration}`
+// [1553775695] unbound[32655:0] info: 127.0.0.1 clients4.google.com. A IN
+
+func LogTextStyle(ctx context.Context, msg *dns.Msg) error {
+	question := safeQuestion(msg)
+	qname := question.Name
+	qtype := dns.Type(question.Qtype).String()
+	qclass := dns.Class(question.Qclass).String()
+	proto, addr := remoteAddr(ctx)
+	rcode := dns.RcodeToString[msg.MsgHdr.Rcode]
+
+	if msg.MsgHdr.Response {
+		log.Info().Msgf("response: %s %s %d %s %s %s %s %s",
+			addr, proto, msg.MsgHdr.Id, qname, qclass, qtype, rcode, flagsAsLetters(msg))
+		return nil
+	}
+
+	log.Info().Msgf("query: %s %s %d %s %s %s %s %s",
+		addr, proto, msg.MsgHdr.Id, qname, qclass, qtype, rcode, flagsAsLetters(msg))
 	return nil
 }
 
@@ -156,18 +176,18 @@ func flagsAsLetters(msg *dns.Msg) string {
 	return strings.Join(flags, ",")
 }
 
-func LogTextStyle(ctx context.Context, msg *dns.Msg) error {
-	question := safeQuestion(msg)
-	qname := question.Name
-	qtype := dns.Type(question.Qtype).String()
-	qclass := dns.Class(question.Qclass).String()
-	proto, addr := remoteAddr(ctx)
-	rcode := dns.RcodeToString[msg.MsgHdr.Rcode]
-	log.Info().Msgf("query: %s %s %d %s %s %s %s %s",
-		addr, proto, msg.MsgHdr.Id, qname, qclass, qtype, rcode, flagsAsLetters(msg))
-	return nil
+func boolToUint8(val bool) uint8 {
+	if val {
+		return 1
+	}
+	return 0
 }
 
-// CoreDNS Format:
-// 	CommonLogFormat = `{remote}:{port} ` + replacer.EmptyValue + ` {>id} "{type} {class} {name} {proto} {size} {>do} {>bufsize}" {rcode} {>rflags} {rsize} {duration}`
-// [1553775695] unbound[32655:0] info: 127.0.0.1 clients4.google.com. A IN
+var emptyQuestion = dns.Question{Name: emptyValue, Qtype: dns.TypeNone, Qclass: dns.ClassNONE}
+
+func safeQuestion(msg *dns.Msg) *dns.Question {
+	if len(msg.Question) > 0 {
+		return &msg.Question[0]
+	}
+	return &emptyQuestion
+}

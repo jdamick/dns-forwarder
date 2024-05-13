@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -43,14 +44,14 @@ func ContainsNS(m *dns.Msg) bool {
 	return ns
 }
 
-func MinDuration(d1, d2 time.Duration) time.Duration {
+func Min[T constraints.Ordered](d1, d2 T) T {
 	if d1 < d2 {
 		return d1
 	}
 	return d2
 }
 
-func MaxDuration(d1, d2 time.Duration) time.Duration {
+func Max[T constraints.Ordered](d1 T, d2 T) T {
 	if d1 < d2 {
 		return d2
 	}
@@ -66,17 +67,14 @@ func FindTTL(m *dns.Msg) time.Duration {
 
 	ttl = defaultCapTTL
 	for _, r := range m.Answer {
-		// fmt.Printf("r: %v\n", r)
-		ttl = MinDuration(ttl, time.Duration(r.Header().Ttl)*time.Second)
+		ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 	}
 	for _, r := range m.Ns {
-		// fmt.Printf("r: %v\n", r)
-		ttl = MinDuration(ttl, time.Duration(r.Header().Ttl)*time.Second)
+		ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 	}
 	for _, r := range m.Extra {
-		// fmt.Printf("r: %v\n", r)
 		if r.Header().Rrtype != dns.TypeOPT {
-			ttl = MinDuration(ttl, time.Duration(r.Header().Ttl)*time.Second)
+			ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 		}
 	}
 

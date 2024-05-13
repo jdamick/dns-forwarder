@@ -2,18 +2,24 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 
 	dnsforwarder "github.com/jdamick/dns-forwarder/pkg"
 	"github.com/kardianos/service"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/diode"
 	log "github.com/rs/zerolog/log"
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 )
 
 func init() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	wr := diode.NewWriter(os.Stdout, 1000, 0, func(missed int) {
+		fmt.Printf("Logger Dropped %d messages", missed)
+	})
+	//log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: wr})
 }
 
 type DNSForwarderServer struct {

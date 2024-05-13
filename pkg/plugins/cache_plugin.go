@@ -131,7 +131,7 @@ func getCacheMsg(cacheExt otter.Extension[string, *msgCacheEntry], key string, a
 	if entry, found := cacheExt.GetEntry(key); found {
 		msgEntry := entry.Value()
 		elapsed := time.Since(msgEntry.received)
-		ttl := MaxDuration(0, msgEntry.ttl-elapsed)
+		ttl := Max(0, msgEntry.ttl-elapsed)
 		if msgEntry.ttl-elapsed < 0 {
 			if !allowStale {
 				return nil
