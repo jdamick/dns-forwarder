@@ -3,6 +3,7 @@ package plugins
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math/rand/v2"
 	"net"
@@ -175,14 +176,14 @@ func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
 		// is resp is truncated or some udp error, try tcp..
 		resp, _ /*rtt*/, err = tcpQuery(up, d.config.timeoutDuration, q)
 		if err != nil {
-			return err
+			return fmt.Errorf("upstream: %v tcp error: %w", up, err)
 		}
 		if err = respMsg.Unpack(resp); err != nil {
-			return err
+			return fmt.Errorf("upstream: %v unpack error: %w", up, err)
 		}
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("upstream: %v %w", up, err)
 	}
 	// send back through the handler..
 	if d.handler != nil {

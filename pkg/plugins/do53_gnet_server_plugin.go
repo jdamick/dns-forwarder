@@ -169,7 +169,6 @@ func (d *DO53GnetServerPlugin) Response(ctx context.Context, msg *dns.Msg) error
 	log.Debug().Msgf("Response: %v", msg)
 	// get the response key and writer and write to it.
 	ResponseMetadata(ctx)[responseWritten] = true
-	//return ctx.Value(responseWriterKey).(dns.ResponseWriter).WriteMsg(msg)
 	msg.Compress = true
 	// todo buf pool
 	buf, err := msg.Pack()
