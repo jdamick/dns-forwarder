@@ -8,6 +8,7 @@
 *.so
 *.dylib
 main
+bin/dns-forwarder
 
 # Test binary, built with `go test -c`
 *.test

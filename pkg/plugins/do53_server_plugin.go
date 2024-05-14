@@ -77,7 +77,7 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 		ResponseMetadata(qctx)[responseWritten] = false
 		handler.Handle(qctx, r.req)
 		if !ResponseMetadata(qctx)[responseWritten].(bool) {
-			d.Response(qctx, synthesizeErrorResponse(r.req))
+			d.Response(qctx, SynthesizeErrorResponse(r.req))
 		}
 
 	}, ants.LeastTasks, ants.WithPreAlloc(true))
@@ -119,6 +119,7 @@ func (d *DO53ServerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
 	log.Debug().Msgf("Response: %v", msg)
 	// get the response key and writer and write to it.
 	ResponseMetadata(ctx)[responseWritten] = true
+	msg.Compress = true
 	return ctx.Value(responseWriterKey).(dns.ResponseWriter).WriteMsg(msg)
 }
 
@@ -148,6 +149,7 @@ func (d *DO53ServerPlugin) ListenTCP() (*dns.Server, error) {
 		err := server.ListenAndServe()
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to start TCP server")
+			waitLock.Unlock()
 		}
 	}()
 	waitLock.Lock()
@@ -179,14 +181,9 @@ func (d *DO53ServerPlugin) ListenUDP() (*dns.Server, error) {
 		err := server.ListenAndServe()
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to start UDP server")
+			waitLock.Unlock()
 		}
 	}()
 	waitLock.Lock()
 	return server, nil
-}
-
-func synthesizeErrorResponse(req *dns.Msg) *dns.Msg {
-	resp := new(dns.Msg)
-	resp.SetRcode(req, dns.RcodeServerFailure)
-	return resp
 }

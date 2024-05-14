@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"net"
 	"time"
 
 	"github.com/miekg/dns"
@@ -13,6 +14,12 @@ const (
 )
 
 // DNS Utils
+
+func SynthesizeErrorResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeServerFailure)
+	return resp
+}
 
 func IsNoData(m *dns.Msg) bool {
 	return m.Rcode == dns.RcodeSuccess && len(m.Answer) == 0 && ContainsSOA(m)
@@ -102,4 +109,38 @@ func ReverseString(s string) string {
 		r[i], r[j] = r[j], r[i]
 	}
 	return string(r)
+}
+
+func DeepCopyAddr(addr net.Addr) net.Addr {
+	switch addr := addr.(type) {
+	case *net.UDPAddr:
+		return &net.UDPAddr{
+			IP:   append([]byte(nil), addr.IP...),
+			Port: addr.Port,
+			Zone: addr.Zone,
+		}
+	case *net.TCPAddr:
+		return &net.TCPAddr{
+			IP:   append([]byte(nil), addr.IP...),
+			Port: addr.Port,
+			Zone: addr.Zone,
+		}
+	case *net.UnixAddr:
+		return &net.UnixAddr{
+			Name: addr.Name,
+			Net:  addr.Net,
+		}
+	case *net.IPAddr:
+		return &net.IPAddr{
+			IP:   append([]byte(nil), addr.IP...),
+			Zone: addr.Zone,
+		}
+	case *net.IPNet:
+		return &net.IPNet{
+			IP:   append([]byte(nil), addr.IP...),
+			Mask: addr.Mask,
+		}
+	default:
+		return nil
+	}
 }
