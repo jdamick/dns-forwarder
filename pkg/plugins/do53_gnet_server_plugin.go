@@ -113,7 +113,6 @@ func (d *DO53GnetServerPlugin) StartServer(sctx context.Context, handler Handler
 		if !ResponseMetadata(qctx)[responseWritten].(bool) {
 			d.Response(qctx, SynthesizeErrorResponse(r.req))
 		}
-
 	}
 
 	udpPool, err := ants.NewMultiPoolWithFunc(10, d.config.PoolSizeUDP, poolJob, ants.LeastTasks, ants.WithPreAlloc(true))
