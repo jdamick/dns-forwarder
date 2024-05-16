@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net"
+	"runtime"
 	"time"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
@@ -88,14 +89,40 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 	return nil
 }
 
+type udpConnPool = *ringBuffer[*net.UDPConn]
+type tcpConnPool = *ringBuffer[*net.TCPConn]
+
 // Start the protocol plugin.
 func (d *DO53ClientPlugin) StartClient(ctx context.Context, handler Handler) error {
 	log.Info().Msg("Starting DO53 Client")
+
+	// connectin pooling
+	udpPool := NewRingBuffer[*net.UDPConn](8_000)
+	//udpPool.Fill(func() *net.UDPConn {
+	for i := 0; i < int(udpPool.Cap()); i++ {
+		lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
+		if err != nil {
+			log.Error().Err(err).Int("i", i).Msg("ResolveUDPAddr failed")
+			//return nil
+			continue
+		}
+		conn, err := net.ListenUDP(udpProto, lAddr)
+		if err != nil {
+			log.Error().Err(err).Int("i", i).Msg("ListenUDP failed")
+			// return nil
+			continue
+		}
+		//return conn
+		udpPool.Enqueue(conn)
+		runtime.Gosched()
+	}
+	//})
+
 	d.handler = handler
 	it := d.clients.Root().Iterator()
 	for k, client, ok := it.Next(); ok; k, client, ok = it.Next() {
 		log.Debug().Str("domain", string(k)).Msg("Starting DO53 Client")
-		if err := client.StartClient(ctx, handler); err != nil {
+		if err := client.StartClient(ctx, udpPool, nil, handler); err != nil {
 			return err
 		}
 	}
@@ -138,12 +165,16 @@ type do53client struct {
 	domain  string
 	config  DO53ClientPluginConfig
 	handler Handler
+	udpPool udpConnPool
+	tcpPool tcpConnPool
 }
 
 // Start the protocol plugin.
-func (d *do53client) StartClient(ctx context.Context, handler Handler) error {
+func (d *do53client) StartClient(ctx context.Context, udpPool udpConnPool, tcpPool tcpConnPool, handler Handler) error {
 	log.Info().Msg("Starting DO53 Client")
 	d.handler = handler
+	d.udpPool = udpPool
+	d.tcpPool = tcpPool
 	return nil
 }
 
@@ -163,7 +194,9 @@ func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
 	var resp []byte
 	up := d.config.pickUpstream()
 	log.Debug().Msgf("sending udp query to upstream: %v", up)
-	resp, _ /*rtt*/, err = udpQuery(up, d.config.timeoutDuration, q)
+	c := d.udpConn()
+	defer d.udpPool.Enqueue(c)
+	resp, _ /*rtt*/, err = udpQuery(c, up, d.config.timeoutDuration, q)
 
 	respMsg := &dns.Msg{}
 	respMsg.Compress = true
@@ -197,7 +230,15 @@ const (
 	udpProto         = "udp"
 )
 
-func udpQuery(serverAddress string, timeout time.Duration, query []byte) ([]byte, time.Duration, error) {
+func (d *do53client) udpConn() *net.UDPConn {
+	conn, ok := d.udpPool.Dequeue()
+	if !ok {
+		return nil
+	}
+	return conn
+}
+
+func udpQuery(conn *net.UDPConn, serverAddress string, timeout time.Duration, query []byte) ([]byte, time.Duration, error) {
 	//defer SimpleScopeTiming("udpExchange3")()
 	var rtt time.Duration
 	packet := []byte{}
@@ -208,17 +249,17 @@ func udpQuery(serverAddress string, timeout time.Duration, query []byte) ([]byte
 	upstreamAddr := udpAddr
 
 	now := time.Now()
-	lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
-	if err != nil {
-		return packet, rtt, err
-	}
+	// lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
+	// if err != nil {
+	// 	return packet, rtt, err
+	// }
 
-	conn, err := net.ListenUDP(udpProto, lAddr)
+	// conn, err := net.ListenUDP(udpProto, lAddr)
 
-	if err != nil {
-		return packet, rtt, err
-	}
-	defer conn.Close()
+	// if err != nil {
+	// 	return packet, rtt, err
+	// }
+	//defer conn.Close()
 	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return packet, rtt, err
 	}
