@@ -14,6 +14,10 @@ import (
 	pkgerrors "github.com/rs/zerolog/pkgerrors"
 )
 
+var (
+	GitCommit string
+)
+
 func init() {
 	wr := diode.NewWriter(os.Stdout, 1000, 0, func(missed int) {
 		fmt.Printf("Logger Dropped %d messages", missed)
@@ -63,9 +67,10 @@ func main() {
 	fs.SetOutput(os.Stdout)
 	svcFlag := fs.String("service", "", "Control the system service ("+strings.Join(service.ControlAction[:], ", ")+")")
 	logLevel := fs.String("loglevel", "info", "Log level (debug, info, warn, error, fatal, panic)")
-	configFile := fs.String("config", name+".toml", "configuration file (dns-forwarder.toml)")
-	pluginHelp := fs.String("pluginConfig", "", "print configuration help for a plugin")
+	configFile := fs.String("config", name+".toml", "Configuration file (dns-forwarder.toml)")
+	pluginHelp := fs.String("pluginConfig", "", "Print configuration help for a plugin")
 	//debug := flag.Bool("debug", false, "Enable Debug Mode")
+	version := fs.Bool("version", false, "Print version")
 	fs.Parse(os.Args[1:])
 
 	lvl, err := zerolog.ParseLevel(*logLevel)
@@ -79,6 +84,11 @@ func main() {
 
 	if pluginHelp != nil && *pluginHelp != "" {
 		dnsforwarder.NewForwarder().PrintHelp(*pluginHelp)
+		return
+	}
+
+	if version != nil && *version {
+		fmt.Println(GitCommit)
 		return
 	}
 
