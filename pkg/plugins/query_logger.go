@@ -29,7 +29,36 @@ func (q *QueryLoggerPlugin) PrintHelp(out io.Writer) {
 }
 
 type QueryLoggerPluginConfig struct {
-	Format string `json:"format" comment:"Query logging format (text, rfc8427)" default:"text"`
+	Format     string `json:"format" comment:"Query logging format (text, rfc8427)" default:"text"`
+	formatType formatType
+}
+
+type formatType int
+
+const (
+	formatText formatType = iota
+	formatRfc8427
+)
+
+func (f formatType) String() string {
+	switch f {
+	case formatText:
+		return "text"
+	case formatRfc8427:
+		return "rfc8427"
+	default:
+		return "unknown"
+	}
+}
+func toFormatType(s string) formatType {
+	switch strings.ToLower(s) {
+	case "text":
+		return formatText
+	case "rfc8427":
+		return formatRfc8427
+	default:
+		return formatText
+	}
 }
 
 // Configure the plugin.
@@ -37,7 +66,7 @@ func (q *QueryLoggerPlugin) Configure(ctx context.Context, config map[string]int
 	if err := UnmarshalConfiguration(config, &q.config); err != nil {
 		return err
 	}
-	q.config.Format = strings.ToLower(q.config.Format)
+	q.config.formatType = toFormatType(q.config.Format)
 	return nil
 }
 
@@ -53,10 +82,10 @@ const emptyValue = "-"
 */
 
 func (q *QueryLoggerPlugin) Query(ctx context.Context, msg *dns.Msg) error {
-	switch q.config.Format {
-	case "rfc8427":
+	switch q.config.formatType {
+	case formatRfc8427:
 		return LogRfc8427Style(ctx, msg)
-	case "text":
+	case formatText:
 		return LogTextStyle(ctx, msg)
 	default:
 		return nil
@@ -64,10 +93,10 @@ func (q *QueryLoggerPlugin) Query(ctx context.Context, msg *dns.Msg) error {
 }
 
 func (q *QueryLoggerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
-	switch q.config.Format {
-	case "rfc8427":
+	switch q.config.formatType {
+	case formatRfc8427:
 		return LogRfc8427Style(ctx, msg)
-	case "text":
+	case formatText:
 		return LogTextStyle(ctx, msg)
 	default:
 		return nil

@@ -158,16 +158,27 @@ func (d *DO53GnetServerPlugin) Response(ctx context.Context, msg *dns.Msg) error
 	// get the response key and writer and write to it.
 	ResponseMetadata(ctx)[responseWritten] = true
 	msg.Compress = true
-	// todo buf pool
-	buf, err := msg.Pack()
+	// todo use a buffer pool
+	out, err := msg.Pack()
 	if err != nil {
 		return err
 	}
-	n, err := ctx.Value(responseWriterKey).(gnet.Conn).Write(buf)
-	if n != len(buf) {
+	c := ctx.Value(responseWriterKey).(gnet.Conn)
+	if isTcp(c) {
+		lenPrefix := make([]byte, 2)
+		binary.BigEndian.PutUint16(lenPrefix, uint16(len(out)))
+		n, err := c.Write(lenPrefix)
+		if n != 2 {
+			log.Error().Err(err).Msgf("response write error")
+			return fmt.Errorf("response write error")
+		}
+	}
+	n, err := c.Write(out)
+	if n != len(out) {
 		log.Error().Err(err).Msgf("response write error")
 		return fmt.Errorf("response write error")
 	}
+
 	return err
 }
 
@@ -200,22 +211,30 @@ func (d *DO53GnetServerPlugin) OnClose(c gnet.Conn, err error) (action gnet.Acti
 	return
 }
 
+func isTcp(c gnet.Conn) bool {
+	_, tcp := c.LocalAddr().(*net.TCPAddr)
+	return tcp
+}
+
 func (d *DO53GnetServerPlugin) OnTraffic(c gnet.Conn) (action gnet.Action) {
+	log.Debug().Msgf("OnTraffic: %v", c)
 	in := []byte{}
 	var err error
-	_, tcp := c.LocalAddr().(*net.TCPAddr)
+	tcp := isTcp(c)
 	if tcp {
 		// could be multiple queries in one packet
-		for i := 0; i < d.config.MaxQueriesPerTCP; i++ {
+		for i := 0; c.InboundBuffered() > 0 && i < d.config.MaxQueriesPerTCP; i++ {
 			in, err = c.Peek(2)
 			if err != nil {
+				log.Error().Err(err).Msg("failed to read length")
 				return
 			}
-			len := binary.BigEndian.Uint16(in)
-			if c.InboundBuffered() >= int(2+len) {
+			inLen := binary.BigEndian.Uint16(in)
+			if c.InboundBuffered() >= int(2+inLen) {
 				c.Discard(2)
-				in, err = c.Next(int(len))
+				in, err = c.Next(int(inLen))
 			} else {
+				log.Error().Uint16("inLen", inLen).Msg("failed to read")
 				return
 			}
 		}
@@ -237,8 +256,9 @@ func (d *DO53GnetServerPlugin) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	jobParam := &gReqResp{req: req, conn: c,
 		remoteAddr: DeepCopyAddr(c.RemoteAddr()),
 		localAddr:  DeepCopyAddr(c.LocalAddr())}
+
 	if tcp {
-		// todo
+		d.tcpPool.Invoke(jobParam)
 	} else {
 		d.udpPool.Invoke(jobParam)
 	}
@@ -301,6 +321,8 @@ func (d *DO53GnetServerPlugin) ListenUDP() error {
 	d.startMutex.Lock()
 	defer d.startMutex.Unlock()
 	go func() {
+		// TODO: IP_PMTUDISC_OMIT
+		// https://github.com/PowerDNS/pdns/issues/7619 & https://github.com/PowerDNS/pdns/pull/7410/files
 		err = gnet.Run(d, proto+"://"+d.config.Listen,
 			gnet.WithLogger(&gnetLogAdapter{}),
 			gnet.WithLogLevel(lvl),
