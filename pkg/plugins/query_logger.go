@@ -63,6 +63,7 @@ func LogMsgWithPrefix(prefixKey, prefixVal string, ctx context.Context, msg *dns
 	return LogRfc8427StyleWithPrefix("", "", ctx, msg)
 }
 
+// This version is significantly slower (~6x) than the text-based version
 func LogRfc8427StyleWithPrefix(prefixKey, prefixVal string, ctx context.Context, msg *dns.Msg) error {
 	question := safeQuestion(msg)
 	proto, srcIp := remoteAddr(ctx)

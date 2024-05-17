@@ -10,6 +10,7 @@ var (
 	pluginOrder = []string{
 		"metrics",
 		"dns",
+		"gnetdns",
 		"http",
 		"https",
 		"doq",

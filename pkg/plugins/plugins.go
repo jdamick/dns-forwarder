@@ -6,15 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/miekg/dns"
-	"github.com/rs/zerolog"
-	log "github.com/rs/zerolog/log"
 )
 
 var (
@@ -93,8 +90,6 @@ var (
 
 // RegisterPlugin registers a plugin
 func RegisterPlugin(plugin Plugin) {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
-	log.Debug().Str("plugin", plugin.Name()).Msg("registering")
 	if clientPlugin, ok := plugin.(ProtocolClientPlugin); ok {
 		clientPlugins = append(clientPlugins, clientPlugin)
 		orderPlugins(clientPlugins)

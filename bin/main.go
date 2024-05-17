@@ -4,9 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	dnsforwarder "github.com/jdamick/dns-forwarder/pkg"
+	"github.com/jdamick/dns-forwarder/pkg/plugins"
 	"github.com/kardianos/service"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/diode"
@@ -59,7 +61,7 @@ func (p *DNSForwarderServer) Stop(s service.Service) error {
 const name = "dns-forwarder"
 
 func main() {
-
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
@@ -69,8 +71,8 @@ func main() {
 	logLevel := fs.String("loglevel", "info", "Log level (debug, info, warn, error, fatal, panic)")
 	configFile := fs.String("config", name+".toml", "Configuration file (dns-forwarder.toml)")
 	pluginHelp := fs.String("pluginConfig", "", "Print configuration help for a plugin")
-	//debug := flag.Bool("debug", false, "Enable Debug Mode")
 	version := fs.Bool("version", false, "Print version")
+	listPlugins := fs.Bool("listPlugins", false, "List available plugins")
 	fs.Parse(os.Args[1:])
 
 	lvl, err := zerolog.ParseLevel(*logLevel)
@@ -81,14 +83,22 @@ func main() {
 	if lvl == zerolog.DebugLevel {
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	}
-
 	if pluginHelp != nil && *pluginHelp != "" {
 		dnsforwarder.NewForwarder().PrintHelp(*pluginHelp)
 		return
 	}
-
 	if version != nil && *version {
-		fmt.Println(GitCommit)
+		fmt.Printf("\n%v git version: %v\n\n", filepath.Base(os.Args[0]), GitCommit)
+		return
+	}
+	if listPlugins != nil && *listPlugins {
+		plugins.PrintPlugins[plugins.Plugin](os.Stdout)
+		temp := dnsforwarder.NewForwarder()
+		fmt.Printf("\nPlugin Configurations:\n")
+		plugins.RunForAllPlugins(func(p plugins.Plugin) (err error) {
+			temp.PrintHelp(p.Name())
+			return
+		})
 		return
 	}
 
