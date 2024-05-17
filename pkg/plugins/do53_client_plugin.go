@@ -21,14 +21,10 @@ type DO53ClientPlugin struct {
 	clients *iradix.Tree[*do53client]
 }
 
-const (
-	defaultDO53Timeout = time.Second * 2
-)
-
 type DO53ClientPluginConfig struct {
-	AlwaysRetryOverTcp bool     `json:"alwaysRetryOverTCP" comment:"Always Retry a Failed UDP Query over TCP"`
+	AlwaysRetryOverTcp bool     `json:"alwaysRetryOverTCP" comment:"Always Retry a Failed UDP Query over TCP" default:"true"`
 	Upstream           []string `json:"upstream" comment:"Address and Port of upstream nameserver"`
-	Timeout            string   `json:"timeout" comment:"Timeout duration"`
+	Timeout            string   `json:"timeout" comment:"Timeout duration" default:"2s"`
 	timeoutDuration    time.Duration
 }
 
@@ -68,9 +64,6 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 			if err != nil {
 				return err
 			}
-		}
-		if client.config.timeoutDuration == 0 {
-			client.config.timeoutDuration = defaultDO53Timeout
 		}
 
 		revDomain := ReverseString(dns.CanonicalName(domain))

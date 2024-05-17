@@ -29,7 +29,11 @@ type DO53GnetServerPlugin struct {
 
 // Register this plugin with the DNS Forwarder.
 func init() {
-	RegisterPlugin(&DO53GnetServerPlugin{})
+	s := &DO53GnetServerPlugin{}
+	// set dynamic defaults.
+	s.config.TcpEventLoopCount = runtime.NumCPU()
+	s.config.UdpEventLoopCount = runtime.NumCPU()
+	RegisterPlugin(s)
 }
 
 func (d *DO53GnetServerPlugin) Name() string {
@@ -42,36 +46,21 @@ func (d *DO53GnetServerPlugin) PrintHelp(out io.Writer) {
 }
 
 type DO53GnetServerPluginConfig struct {
-	Listen                 string `toml:"listen" comment:"Listen Address and Port"`
-	PoolSizeTCP            int    `toml:"tcpPoolSize" comment:"Worker Pool Size"`
-	PoolSizeUDP            int    `toml:"udpPoolSize" comment:"Worker Pool Size"`
-	numEventLoopTCP        int
-	numEventLoopUDP        int
-	bufferSizeTCP          int
-	bufferSizeUDP          int
-	maxQueriesPerTCPPacket int
-	tcpKeepAlive           time.Duration
-	EnableLogging          bool `toml:"enableLogging" comment:"Enable Logging on gnet"`
+	Listen            string        `toml:"listen" comment:"Listen Address and Port" default:"53"`
+	PoolSizeTCP       int           `toml:"tcpPoolSize" comment:"Worker Pool Size" default:"10"`
+	PoolSizeUDP       int           `toml:"udpPoolSize" comment:"Worker Pool Size" default:"10"`
+	TcpEventLoopCount int           `toml:"tcpEventLoopCount" comment:"Count of TCP Event Loops"`
+	UdpEventLoopCount int           `toml:"udpEventLoopCount" comment:"Count of TCP Event Loops"`
+	TcpBufferSize     int           `toml:"tcpBufferSize" comment:"Size TCP socket buffers" default:"10240"`
+	UdpBufferSize     int           `toml:"udpBufferSize" comment:"Size UDP socket buffers" default:"10240"`
+	MaxQueriesPerTCP  int           `toml:"maxQueriesPerTCPStream" comment:"Size UDP socket buffers" default:"50"`
+	TcpKeepAlive      time.Duration `toml:"tcpKeepAlive" comment:"time to maintain tcp keep-alive" default:"10s"`
+	EnableLogging     bool          `toml:"enableLogging" comment:"Enable Logging on gnet" default:"false"`
 }
-
-const (
-// defaultDo53PoolSize = 10
-)
 
 // Configure the plugin.
 func (d *DO53GnetServerPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("DO53GnetServerPlugin.Configure")
-
-	// todo
-	d.config.numEventLoopTCP = runtime.NumCPU()
-	d.config.numEventLoopUDP = runtime.NumCPU()
-	d.config.PoolSizeTCP = defaultDo53PoolSize
-	d.config.PoolSizeUDP = defaultDo53PoolSize
-	d.config.bufferSizeTCP = 10 * 1024
-	d.config.bufferSizeUDP = 10 * 1024
-	d.config.maxQueriesPerTCPPacket = 50
-	d.config.tcpKeepAlive = 10 * time.Second
-	d.config.EnableLogging = false
 
 	if err := UnmarshalConfiguration(config, &d.config); err != nil {
 		return err
@@ -217,7 +206,7 @@ func (d *DO53GnetServerPlugin) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	_, tcp := c.LocalAddr().(*net.TCPAddr)
 	if tcp {
 		// could be multiple queries in one packet
-		for i := 0; i < d.config.maxQueriesPerTCPPacket; i++ {
+		for i := 0; i < d.config.MaxQueriesPerTCP; i++ {
 			in, err = c.Peek(2)
 			if err != nil {
 				return
@@ -280,12 +269,12 @@ func (d *DO53GnetServerPlugin) ListenTCP() error {
 			gnet.WithLogger(&gnetLogAdapter{}),
 			gnet.WithLogLevel(lvl),
 			gnet.WithEdgeTriggeredIO(true),
-			gnet.WithNumEventLoop(d.config.numEventLoopTCP),
+			gnet.WithNumEventLoop(d.config.TcpEventLoopCount),
 			gnet.WithReusePort(true),
 			gnet.WithReuseAddr(true),
-			gnet.WithReadBufferCap(d.config.bufferSizeTCP),
-			gnet.WithSocketRecvBuffer(d.config.bufferSizeTCP),
-			gnet.WithTCPKeepAlive(d.config.tcpKeepAlive))
+			gnet.WithReadBufferCap(d.config.TcpBufferSize),
+			gnet.WithSocketRecvBuffer(d.config.TcpBufferSize),
+			gnet.WithTCPKeepAlive(d.config.TcpKeepAlive))
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to start TCP server")
 			d.startMutex.Unlock()
@@ -316,13 +305,13 @@ func (d *DO53GnetServerPlugin) ListenUDP() error {
 			gnet.WithLogger(&gnetLogAdapter{}),
 			gnet.WithLogLevel(lvl),
 			gnet.WithEdgeTriggeredIO(true),
-			gnet.WithNumEventLoop(d.config.numEventLoopUDP),
+			gnet.WithNumEventLoop(d.config.UdpEventLoopCount),
 			gnet.WithReusePort(true),
 			gnet.WithReuseAddr(true),
-			gnet.WithReadBufferCap(d.config.bufferSizeUDP),
-			gnet.WithSocketRecvBuffer(d.config.bufferSizeUDP),
-			gnet.WithWriteBufferCap(d.config.bufferSizeUDP),
-			gnet.WithSocketSendBuffer(d.config.bufferSizeUDP))
+			gnet.WithReadBufferCap(d.config.UdpBufferSize),
+			gnet.WithSocketRecvBuffer(d.config.UdpBufferSize),
+			gnet.WithWriteBufferCap(d.config.UdpBufferSize),
+			gnet.WithSocketSendBuffer(d.config.UdpBufferSize))
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to start UDP server")
 			d.startMutex.Unlock()

@@ -11,6 +11,7 @@ import (
 )
 
 type QueryLoggerPlugin struct {
+	config QueryLoggerPluginConfig
 }
 
 // Register this plugin with the DNS Forwarder.
@@ -24,11 +25,19 @@ func (q *QueryLoggerPlugin) Name() string {
 
 // PrintHelp prints the configuration help for the plugin.
 func (q *QueryLoggerPlugin) PrintHelp(out io.Writer) {
-	PrintPluginHelp(q.Name(), nil, out)
+	PrintPluginHelp(q.Name(), &q.config, out)
+}
+
+type QueryLoggerPluginConfig struct {
+	Format string `json:"format" comment:"Query logging format (text, rfc8427)" default:"text"`
 }
 
 // Configure the plugin.
 func (q *QueryLoggerPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
+	if err := UnmarshalConfiguration(config, &q.config); err != nil {
+		return err
+	}
+	q.config.Format = strings.ToLower(q.config.Format)
 	return nil
 }
 
@@ -44,15 +53,25 @@ const emptyValue = "-"
 */
 
 func (q *QueryLoggerPlugin) Query(ctx context.Context, msg *dns.Msg) error {
-	LogRfc8427Style(ctx, msg)
-	LogTextStyle(ctx, msg)
-	return nil
+	switch q.config.Format {
+	case "rfc8427":
+		return LogRfc8427Style(ctx, msg)
+	case "text":
+		return LogTextStyle(ctx, msg)
+	default:
+		return nil
+	}
 }
 
-func (c *QueryLoggerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
-	LogRfc8427Style(ctx, msg)
-	LogTextStyle(ctx, msg)
-	return nil
+func (q *QueryLoggerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
+	switch q.config.Format {
+	case "rfc8427":
+		return LogRfc8427Style(ctx, msg)
+	case "text":
+		return LogTextStyle(ctx, msg)
+	default:
+		return nil
+	}
 }
 
 func LogRfc8427Style(ctx context.Context, msg *dns.Msg) error {

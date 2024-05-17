@@ -9,8 +9,11 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"text/tabwriter"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Eun/go-convert"
 	"github.com/miekg/dns"
 )
 
@@ -112,8 +115,13 @@ func RegisterPlugin(plugin Plugin) {
 }
 
 func UnmarshalConfiguration(config map[string]interface{}, v interface{}) error {
+	err := applyDefaults(v)
+	if err != nil {
+		return err
+	}
+
 	buf := new(bytes.Buffer)
-	err := toml.NewEncoder(buf).Encode(config)
+	err = toml.NewEncoder(buf).Encode(config)
 	if err != nil {
 		return err
 	}
@@ -127,18 +135,27 @@ func PrintPluginHelp(pluginName string, config interface{}, out io.Writer) {
 	for i := 0; i < 50; i++ {
 		b.WriteRune('-')
 	}
-	b.WriteString("\n[" + pluginName + "]\n")
+	b.WriteString("\n")
+	out.Write([]byte(b.String()))
+
+	out.Write([]byte("[" + pluginName + "]\n"))
 	if config != nil {
 		el := reflect.TypeOf(config).Elem()
+		tw := tabwriter.NewWriter(out, 0, 0, 3, ' ', 0)
 		for i := el.NumField() - 1; i >= 0; i-- {
 			field := el.Field(i)
-			b.WriteString(field.Name + "=(" + field.Type.String() + ") # " + field.Tag.Get("comment") + "\n")
+			if !field.IsExported() {
+				continue
+			}
+			defaultVal := field.Tag.Get("default")
+			if defaultVal == "" {
+				defaultVal = fmt.Sprintf("%v", reflect.ValueOf(config).Elem().FieldByName(field.Name))
+			}
+			fieldNameType := field.Name + "=(" + field.Type.String() + ")"
+			tw.Write([]byte(fieldNameType + "\t# " + field.Tag.Get("comment") + "\t(default: " + defaultVal + ")\n"))
 		}
+		tw.Flush()
 	}
-	for i := 0; i < 50; i++ {
-		b.WriteRune('-')
-	}
-	b.WriteString("\n")
 	out.Write([]byte(b.String()))
 }
 
@@ -181,4 +198,28 @@ func PrintPlugins[P Plugin](out io.Writer) {
 			fmt.Fprintf(out, "%v\n", p.Name())
 		}
 	}
+}
+
+// add custom time duration converter since it doesnt exist in the std recipes
+var converter = convert.New(convert.Options{
+	Recipes: convert.MustMakeRecipes(
+		func(_ convert.Converter, in string, out *time.Duration) (err error) {
+			*out, err = time.ParseDuration(in)
+			return
+		},
+	),
+})
+
+// Use the struct tag 'default' to set the default value for a field.
+func applyDefaults(v interface{}) error {
+	el := reflect.TypeOf(v).Elem()
+	for i := el.NumField() - 1; i >= 0; i-- {
+		field := el.Field(i)
+		if val := field.Tag.Get("default"); val != "" {
+			if err := converter.Convert(val, reflect.ValueOf(v).Elem().Field(i).Addr().Interface()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

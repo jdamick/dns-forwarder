@@ -10,10 +10,6 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
-const (
-	defaultMetricsPort = 8080
-)
-
 type MetricsPlugin struct {
 	config MetricsPluginConfig
 }
@@ -33,14 +29,12 @@ func (c *MetricsPlugin) PrintHelp(out io.Writer) {
 }
 
 type MetricsPluginConfig struct {
-	Port int `json:"port" comment:"Metrics HTTP Port"`
+	Port int `json:"port" comment:"Metrics HTTP Port" default:"8080"`
 }
 
 // Configure the plugin.
 func (c *MetricsPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("MetricsPlugin.Configure")
-	// set defaults
-	c.config.Port = defaultMetricsPort
 	if err := UnmarshalConfiguration(config, &c.config); err != nil {
 		return err
 	}
