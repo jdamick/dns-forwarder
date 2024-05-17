@@ -188,6 +188,9 @@ func (d *do53client) Query(ctx context.Context, msg *dns.Msg) error {
 	up := d.config.pickUpstream()
 	log.Debug().Msgf("sending udp query to upstream: %v", up)
 	c := d.udpConn()
+	if c == nil {
+		return fmt.Errorf("no udp connections available")
+	}
 	defer d.udpPool.Enqueue(c)
 	resp, _ /*rtt*/, err = udpQuery(c, up, d.config.timeoutDuration, q)
 
