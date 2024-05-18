@@ -29,7 +29,7 @@ func (c *MetricsPlugin) PrintHelp(out io.Writer) {
 }
 
 type MetricsPluginConfig struct {
-	Port int `json:"port" comment:"Metrics HTTP Port" default:"8080"`
+	Port int `toml:"port" comment:"Metrics HTTP Port" default:"8080"`
 }
 
 // Configure the plugin.

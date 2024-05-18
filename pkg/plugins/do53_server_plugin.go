@@ -33,18 +33,13 @@ func (d *DO53ServerPlugin) PrintHelp(out io.Writer) {
 }
 
 type DO53ServerPluginConfig struct {
-	Listen   string `json:"listen" comment:"Listen Address and Port"`
-	PoolSize int    `json:"poolSize" comment:"Worker Pool Size"`
+	Listen   string `toml:"listen" comment:"Listen Address and Port" default:"53"`
+	PoolSize int    `toml:"workerPoolSize" comment:"Worker Pool Size" default:"10"`
 }
-
-const (
-	defaultDo53PoolSize = 10
-)
 
 // Configure the plugin.
 func (d *DO53ServerPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("DO53ServerPluginConfig.Configure")
-	d.config.PoolSize = defaultDo53PoolSize
 	if err := UnmarshalConfiguration(config, &d.config); err != nil {
 		return err
 	}

@@ -22,9 +22,10 @@ type DO53ClientPlugin struct {
 }
 
 type DO53ClientPluginConfig struct {
-	AlwaysRetryOverTcp bool     `json:"alwaysRetryOverTCP" comment:"Always Retry a Failed UDP Query over TCP" default:"true"`
-	Upstream           []string `json:"upstream" comment:"Address and Port of upstream nameserver"`
-	Timeout            string   `json:"timeout" comment:"Timeout duration" default:"2s"`
+	AlwaysRetryOverTcp bool     `toml:"alwaysRetryOverTCP" comment:"Always Retry a Failed UDP Query over TCP" default:"true"`
+	Upstream           []string `toml:"upstream" comment:"Address and Port of upstream nameserver"`
+	UdpConnPoolSize    int      `toml:"udpConnectionPoolSize" comment:"UDP Connection Pool Size" default:"8000"`
+	Timeout            string   `toml:"timeout" comment:"Timeout duration" default:"2s"`
 	timeoutDuration    time.Duration
 }
 

@@ -147,11 +147,15 @@ func PrintPluginHelp(pluginName string, config interface{}, out io.Writer) {
 			if !field.IsExported() {
 				continue
 			}
+			fieldName := field.Tag.Get("toml")
+			if fieldName == "" {
+				fieldName = field.Name
+			}
 			defaultVal := field.Tag.Get("default")
 			if defaultVal == "" {
 				defaultVal = fmt.Sprintf("%v", reflect.ValueOf(config).Elem().FieldByName(field.Name))
 			}
-			fieldNameType := field.Name + "=(" + field.Type.String() + ")"
+			fieldNameType := fieldName + "=(" + field.Type.String() + ")"
 			tw.Write([]byte(fieldNameType + "\t# " + field.Tag.Get("comment") + "\t(default: " + defaultVal + ")\n"))
 		}
 		tw.Flush()

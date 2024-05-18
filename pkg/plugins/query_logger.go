@@ -29,7 +29,7 @@ func (q *QueryLoggerPlugin) PrintHelp(out io.Writer) {
 }
 
 type QueryLoggerPluginConfig struct {
-	Format     string `json:"format" comment:"Query logging format (text, rfc8427)" default:"text"`
+	Format     string `toml:"format" comment:"Query logging format (text, rfc8427)" default:"text"`
 	formatType formatType
 }
 

@@ -29,7 +29,6 @@ func IsNoCache(ctx context.Context) bool {
 
 // Default configuration values.
 const (
-	defaultMaxElements      = 1_000
 	defaultMaxStaleElements = 10_000
 	defaulStaleDuration     = time.Hour * 24 * 5
 	defaultStaleTTL         = time.Second * 30
@@ -37,11 +36,11 @@ const (
 )
 
 type CachePluginConfig struct {
-	MaxElements      int           `json:"maxElements" comment:"Max Elements in cache"`
-	MaxStaleElements int           `json:"maxStaleElements" comment:"Max Elements in stale cache"`
-	StaleDuration    time.Duration `json:"staleDuration" comment:"Duration of stale cache"`
-	StaleCache       bool          `json:"staleCache" comment:"Enable Stale Caching"`
-	NegativeAnswers  bool          `json:"negativeAnswers" comment:"Enable Negative Answers Caching"`
+	MaxElements      int           `toml:"maxElements" comment:"Max Elements in cache" default:"1000"`
+	MaxStaleElements int           `toml:"maxStaleElements" comment:"Max Elements in stale cache"`
+	StaleDuration    time.Duration `toml:"staleDuration" comment:"Duration of stale cache"`
+	StaleCache       bool          `toml:"staleCache" comment:"Enable Stale Caching"`
+	NegativeAnswers  bool          `toml:"negativeAnswers" comment:"Enable Negative Answers Caching"`
 }
 
 // Register this plugin with the DNS Forwarder.
@@ -62,7 +61,6 @@ func (c *CachePlugin) PrintHelp(out io.Writer) {
 func (c *CachePlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("CachePlugin.Configure")
 	// set defaults
-	c.config.MaxElements = defaultMaxElements
 	c.config.StaleDuration = defaulStaleDuration
 	if err := UnmarshalConfiguration(config, &c.config); err != nil {
 		return err
