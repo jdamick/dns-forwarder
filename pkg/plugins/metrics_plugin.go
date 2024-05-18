@@ -38,7 +38,7 @@ func (c *MetricsPlugin) Configure(ctx context.Context, config map[string]interfa
 	if err := UnmarshalConfiguration(config, &c.config); err != nil {
 		return err
 	}
-	go c.StartHttpEndpoint()
+	c.StartHttpEndpoint()
 	return nil
 }
 
