@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	utils "github.com/jdamick/dns-forwarder/pkg/utils"
 	"github.com/miekg/dns"
 	ants "github.com/panjf2000/ants/v2"
 	"github.com/panjf2000/gnet/v2"
@@ -100,7 +101,7 @@ func (d *DO53GnetServerPlugin) StartServer(sctx context.Context, handler Handler
 		handler.Handle(qctx, r.req)
 
 		if !ResponseMetadata(qctx)[responseWritten].(bool) {
-			d.Response(qctx, SynthesizeErrorResponse(r.req))
+			d.Response(qctx, utils.SynthesizeErrorResponse(r.req))
 		}
 	}
 
@@ -254,8 +255,8 @@ func (d *DO53GnetServerPlugin) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	}
 
 	jobParam := &gReqResp{req: req, conn: c,
-		remoteAddr: DeepCopyAddr(c.RemoteAddr()),
-		localAddr:  DeepCopyAddr(c.LocalAddr())}
+		remoteAddr: utils.DeepCopyAddr(c.RemoteAddr()),
+		localAddr:  utils.DeepCopyAddr(c.LocalAddr())}
 
 	if tcp {
 		d.tcpPool.Invoke(jobParam)

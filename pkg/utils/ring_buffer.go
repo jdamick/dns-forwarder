@@ -20,7 +20,7 @@ type ringNode[T any] struct {
 
 type ring[T any] []ringNode[T]
 
-type ringBuffer[T any] struct {
+type RingBuffer[T any] struct {
 	// see: https://arxiv.org/pdf/1012.1824.pdf
 	_              cpu.CacheLinePad
 	queue          uint64
@@ -32,7 +32,7 @@ type ringBuffer[T any] struct {
 	ring           ring[T]
 }
 
-func NewRingBuffer[T any](size uint64) *ringBuffer[T] {
+func NewRingBuffer[T any](size uint64) *RingBuffer[T] {
 	if size <= 0 {
 		return nil // size must be greater than 0
 	}
@@ -43,7 +43,7 @@ func NewRingBuffer[T any](size uint64) *ringBuffer[T] {
 		return nil // size must be a power of 2
 	}
 
-	r := &ringBuffer[T]{
+	r := &RingBuffer[T]{
 		ring: make(ring[T], pow2size),
 	}
 	for idx := uint64(0); idx < pow2size; idx++ {
@@ -54,7 +54,7 @@ func NewRingBuffer[T any](size uint64) *ringBuffer[T] {
 	return r
 }
 
-func (r *ringBuffer[T]) Enqueue(val T) bool {
+func (r *RingBuffer[T]) Enqueue(val T) bool {
 	pos := atomic.LoadUint64(&r.queue)
 	n := &r.ring[pos&r.mask]
 	seq := atomic.LoadUint64(&n.pos)
@@ -70,7 +70,7 @@ func (r *ringBuffer[T]) Enqueue(val T) bool {
 	return false
 }
 
-func (r *ringBuffer[T]) Dequeue() (val T, ok bool) {
+func (r *RingBuffer[T]) Dequeue() (val T, ok bool) {
 	pos := atomic.LoadUint64(&r.dequeue)
 	n := &r.ring[pos&r.mask]
 	seq := atomic.LoadUint64(&n.pos)
@@ -86,21 +86,21 @@ func (r *ringBuffer[T]) Dequeue() (val T, ok bool) {
 	return
 }
 
-func (r *ringBuffer[T]) Full() bool {
+func (r *RingBuffer[T]) Full() bool {
 	return r.Cap() == r.Len()
 }
 
-func (r *ringBuffer[T]) Len() uint64 {
+func (r *RingBuffer[T]) Len() uint64 {
 	return atomic.LoadUint64(&r.queue) - atomic.LoadUint64(&r.dequeue)
 }
 
-func (r *ringBuffer[T]) Cap() uint64 {
+func (r *RingBuffer[T]) Cap() uint64 {
 	return uint64(len(r.ring))
 }
 
 type RingFillFunc[T any] func() (val T)
 
-func (r *ringBuffer[T]) Fill(filler RingFillFunc[T]) {
+func (r *RingBuffer[T]) Fill(filler RingFillFunc[T]) {
 	if !r.Full() {
 		for r.Enqueue(filler()) {
 			// nothing, just fill it.

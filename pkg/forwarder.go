@@ -8,6 +8,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/VictoriaMetrics/metrics"
 	plugins "github.com/jdamick/dns-forwarder/pkg/plugins"
+	utils "github.com/jdamick/dns-forwarder/pkg/utils"
 	"github.com/miekg/dns"
 	log "github.com/rs/zerolog/log"
 )
@@ -103,7 +104,7 @@ const (
 func (f *Forwarder) QueryHandler(ctx context.Context, msg *dns.Msg) (*dns.Msg, error) {
 	log.Debug().Msg("QueryHandler")
 
-	defer plugins.SimpleScopeTiming("dns_query_duration")()
+	defer utils.SimpleScopeTiming("dns_query_duration")()
 	metrics.GetOrCreateCounter("dns_query_inflight_count").Inc()
 	defer metrics.GetOrCreateCounter("dns_query_inflight_count").Dec()
 

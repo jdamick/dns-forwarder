@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	utils "github.com/jdamick/dns-forwarder/pkg/utils"
 	"github.com/miekg/dns"
 	ants "github.com/panjf2000/ants/v2"
 	log "github.com/rs/zerolog/log"
@@ -72,7 +73,7 @@ func (d *DO53ServerPlugin) StartServer(sctx context.Context, handler Handler) er
 		ResponseMetadata(qctx)[responseWritten] = false
 		handler.Handle(qctx, r.req)
 		if !ResponseMetadata(qctx)[responseWritten].(bool) {
-			d.Response(qctx, SynthesizeErrorResponse(r.req))
+			d.Response(qctx, utils.SynthesizeErrorResponse(r.req))
 		}
 
 	}, ants.LeastTasks, ants.WithPreAlloc(true))

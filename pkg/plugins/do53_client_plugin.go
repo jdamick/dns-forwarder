@@ -11,6 +11,7 @@ import (
 	"time"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
+	utils "github.com/jdamick/dns-forwarder/pkg/utils"
 	"github.com/miekg/dns"
 	log "github.com/rs/zerolog/log"
 )
@@ -67,7 +68,7 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 			}
 		}
 
-		revDomain := ReverseString(dns.CanonicalName(domain))
+		revDomain := utils.ReverseString(dns.CanonicalName(domain))
 		var ok bool
 		d.clients, _, ok = d.clients.Insert([]byte(revDomain), client)
 		if !ok {
@@ -83,15 +84,15 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 	return nil
 }
 
-type udpConnPool = *ringBuffer[*net.UDPConn]
-type tcpConnPool = *ringBuffer[*net.TCPConn]
+type udpConnPool = *utils.RingBuffer[*net.UDPConn]
+type tcpConnPool = *utils.RingBuffer[*net.TCPConn]
 
 // Start the protocol plugin.
 func (d *DO53ClientPlugin) StartClient(ctx context.Context, handler Handler) error {
 	log.Info().Msg("Starting DO53 Client")
 
 	// connectin pooling
-	udpPool := NewRingBuffer[*net.UDPConn](8_000)
+	udpPool := utils.NewRingBuffer[*net.UDPConn](8_000)
 	//udpPool.Fill(func() *net.UDPConn {
 	for i := 0; i < int(udpPool.Cap()); i++ {
 		lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
@@ -140,7 +141,7 @@ func (d *DO53ClientPlugin) Query(ctx context.Context, msg *dns.Msg) error {
 		return nil
 	}
 	qname := msg.Question[0].Name
-	revDomain := ReverseString(dns.CanonicalName(qname))
+	revDomain := utils.ReverseString(dns.CanonicalName(qname))
 	if _, client, ok := d.clients.Root().LongestPrefix([]byte(revDomain)); ok {
 		return client.Query(ctx, msg)
 	}

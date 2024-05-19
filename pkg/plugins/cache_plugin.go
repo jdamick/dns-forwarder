@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	utils "github.com/jdamick/dns-forwarder/pkg/utils"
 	"github.com/maypok86/otter"
 	"github.com/miekg/dns"
 	log "github.com/rs/zerolog/log"
@@ -94,8 +95,6 @@ func (c *CachePlugin) StopClient(ctx context.Context) error {
 }
 
 func (c *CachePlugin) Query(ctx context.Context, msg *dns.Msg) error {
-	//fmt.Printf("Query: \n%v\n", msg.String())
-
 	key, err := c.CacheKey(ctx, msg)
 	if err != nil {
 		return err
@@ -123,7 +122,7 @@ func getCacheMsg(cacheExt otter.Extension[string, *msgCacheEntry], key string, a
 	if entry, found := cacheExt.GetEntry(key); found {
 		msgEntry := entry.Value()
 		elapsed := time.Since(msgEntry.received)
-		ttl := Max(0, msgEntry.ttl-elapsed)
+		ttl := utils.Max(0, msgEntry.ttl-elapsed)
 		if msgEntry.ttl-elapsed < 0 {
 			if !allowStale {
 				return nil
@@ -131,7 +130,7 @@ func getCacheMsg(cacheExt otter.Extension[string, *msgCacheEntry], key string, a
 			ttl = staleTTL
 		}
 
-		UpdateTTL(msgEntry.msg, ttl)
+		utils.UpdateTTL(msgEntry.msg, ttl)
 		return msgEntry.msg
 	}
 	return nil
@@ -161,13 +160,13 @@ func (c *CachePlugin) Response(ctx context.Context, msg *dns.Msg) error {
 		return nil
 	}
 
-	ttl := FindTTL(msg)
+	ttl := utils.FindTTL(msg)
 	if ttl == 0 {
 		return nil
 	}
 
 	// NegativeAnswers handling
-	if IsNXDomain(msg) || IsNoData(msg) {
+	if utils.IsNXDomain(msg) || utils.IsNoData(msg) {
 		if !c.config.NegativeAnswers {
 			return nil
 		}
