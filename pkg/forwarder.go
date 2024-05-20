@@ -21,10 +21,10 @@ func NewForwarder() *Forwarder {
 	return &Forwarder{configuredPlugins: make(map[string]plugins.Plugin)}
 }
 
-func (f *Forwarder) PrintHelp(pluginName string) {
+func (f *Forwarder) PrintHelp(pluginName string, out io.Writer) {
 	plugins.RunForAllPlugins(func(p plugins.Plugin) error {
 		if p.Name() == pluginName {
-			p.PrintHelp(os.Stdout)
+			p.PrintHelp(out)
 		}
 		return nil
 	})
