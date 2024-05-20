@@ -76,7 +76,6 @@ func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]inte
 			for k, client, ok := it.Next(); ok; k, client, ok = it.Next() {
 				log.Debug().Str("k", string(k)).Msgf("tree: %v", client)
 			}
-			//	return fmt.Errorf("failed to insert domain: %v as %v", domain, revDomain)
 		}
 		log.Debug().Msgf("DO53Client: %#v", client.config)
 	}
