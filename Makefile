@@ -25,3 +25,6 @@ cross:
 
 test:
 	go test -v ./...
+
+coverage:
+	go test -coverprofile=cover.out -covermode=atomic -race ./...; [ -f cover.out ] && cat cover.out >> coverage.txt

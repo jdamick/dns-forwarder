@@ -8,6 +8,7 @@ var (
 	// this is the plugin processing order for queries.
 	// responses will follow this order in reverse.
 	pluginOrder = []string{
+		"memory",
 		"metrics",
 		"dns",
 		"gnetdns",

@@ -139,9 +139,9 @@ func TestRingBufferConccurrent(t *testing.T) {
 		strs = append(strs, "str: "+strconv.Itoa(i))
 	}
 
-	vals := make(map[string]bool)
+	vals := sync.Map{}
 	for i := 0; i < int(r.Cap()); i++ {
-		vals[strs[i]] = true
+		vals.Store(strs[i], true)
 	}
 
 	go func() {
@@ -150,19 +150,25 @@ func TestRingBufferConccurrent(t *testing.T) {
 		}
 	}()
 
-	go func(vals map[string]bool) {
+	go func(vals *sync.Map) {
 		received := 0
 		for i := 0; received < int(r.Cap()); i++ {
 			if val, ok := r.Dequeue(); ok {
 				wg.Done()
 				received++
-				delete(vals, val)
+				vals.Delete(val)
+				//delete(vals, val)
 			} else {
 				runtime.Gosched()
 			}
 		}
-	}(vals)
+	}(&vals)
 	wg.Wait()
 
-	assert.Equal(0, len(vals))
+	valsLen := 0
+	vals.Range(func(key, value interface{}) bool {
+		valsLen++
+		return true
+	})
+	assert.Equal(0, valsLen)
 }
