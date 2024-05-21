@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"net"
+	"reflect"
 	"runtime"
 	"time"
 
@@ -17,9 +18,9 @@ import (
 )
 
 type DO53ClientPlugin struct {
-	//config  DO53ClientPluginConfig
-	handler Handler
-	clients *iradix.Tree[*do53client]
+	baseConfig DO53ClientPluginConfig
+	handler    Handler
+	clients    *iradix.Tree[*do53client]
 }
 
 type DO53ClientPluginConfig struct {
@@ -28,11 +29,14 @@ type DO53ClientPluginConfig struct {
 	UdpConnPoolSize    int      `toml:"udpConnectionPoolSize" comment:"UDP Connection Pool Size" default:"8000"`
 	Timeout            string   `toml:"timeout" comment:"Timeout duration" default:"2s"`
 	timeoutDuration    time.Duration
+	//UDPSize            uint16   `toml:"udpsize" comment:"Max size of UDP response" default:"1232"`
 }
 
 // Register this plugin with the DNS Forwarder.
 func init() {
-	RegisterPlugin(&DO53ClientPlugin{clients: iradix.New[*do53client]()})
+	RegisterPlugin(&DO53ClientPlugin{
+		clients: iradix.New[*do53client](),
+	})
 }
 
 func (d *DO53ClientPlugin) Name() string {
@@ -42,17 +46,24 @@ func (d *DO53ClientPlugin) Name() string {
 // PrintHelp prints the configuration help for the plugin.
 func (d *DO53ClientPlugin) PrintHelp(out io.Writer) {
 	PrintPluginHelp(d.Name(), &DO53ClientPluginConfig{}, out)
+	PrintPluginHelp(d.Name()+".\"<optional domain specific>\"", &DO53ClientPluginConfig{}, out)
 }
 
 // Configure the plugin.
 func (d *DO53ClientPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
 	log.Debug().Any("config", config).Msg("DO53ClientPlugin.Configure")
 
+	if err := UnmarshalConfiguration(config, &d.baseConfig); err != nil {
+		return err
+	}
+	log.Debug().Any("base config", d.baseConfig).Msg("DO53ClientPlugin.Configure")
+
 	// get each domain configured
 	for domain, cfg := range config {
-		if cfg == nil {
+		if cfg == nil || reflect.TypeOf(cfg) != reflect.TypeOf(map[string]interface{}{}) {
 			continue
 		}
+
 		log.Debug().Str("domain", domain).Any("config", cfg).Msg("DO53ClientPlugin.Configure")
 
 		client := &do53client{domain: domain}
@@ -92,25 +103,23 @@ func (d *DO53ClientPlugin) StartClient(ctx context.Context, handler Handler) err
 
 	// connectin pooling
 	udpPool := utils.NewRingBuffer[*net.UDPConn](8_000)
-	//udpPool.Fill(func() *net.UDPConn {
-	for i := 0; i < int(udpPool.Cap()); i++ {
-		lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
-		if err != nil {
-			log.Error().Err(err).Int("i", i).Msg("ResolveUDPAddr failed")
-			//return nil
+	tries := 0
+ConnFill:
+	for i := udpPool.Len(); i < udpPool.Cap(); i++ {
+		conn := createUDPConn()
+		if conn == nil {
+			if tries < 3 {
+				tries++
+				runtime.Gosched()
+				continue ConnFill
+			}
 			continue
 		}
-		conn, err := net.ListenUDP(udpProto, lAddr)
-		if err != nil {
-			log.Error().Err(err).Int("i", i).Msg("ListenUDP failed")
-			// return nil
-			continue
-		}
-		//return conn
 		udpPool.Enqueue(conn)
-		runtime.Gosched()
 	}
-	//})
+	if !udpPool.Full() {
+		log.Error().Uint64("udpPool", udpPool.Len()).Msg("failed to fill up UDP connection pool")
+	}
 
 	d.handler = handler
 	it := d.clients.Root().Iterator()
@@ -123,6 +132,31 @@ func (d *DO53ClientPlugin) StartClient(ctx context.Context, handler Handler) err
 	return nil
 }
 
+func createUDPConn() *net.UDPConn {
+	lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
+	if err != nil {
+		log.Error().Err(err).Msg("ResolveUDPAddr failed")
+	}
+	conn, err := net.ListenUDP(udpProto, lAddr)
+	if err != nil {
+		log.Error().Err(err).Msg("ListenUDP failed")
+	}
+	return conn
+}
+
+/*
+func createTCPConn() *net.TCPConn {
+	lAddr, err := net.ResolveTCPAddr(tcpProto, ":0")
+	if err != nil {
+		log.Error().Err(err).Msg("ResolveTCPAddr failed")
+	}
+	conn, err := net.ListenTCP(tcpProto, lAddr)
+	if err != nil {
+		log.Error().Err(err).Msg("ListenTCP failed")
+	}
+	return conn
+}
+*/
 // Stop the protocol plugin.
 func (d *DO53ClientPlugin) StopClient(ctx context.Context) error {
 	it := d.clients.Root().Iterator()
@@ -246,17 +280,6 @@ func udpQuery(conn *net.UDPConn, serverAddress string, timeout time.Duration, qu
 	upstreamAddr := udpAddr
 
 	now := time.Now()
-	// lAddr, err := net.ResolveUDPAddr(udpProto, ":0")
-	// if err != nil {
-	// 	return packet, rtt, err
-	// }
-
-	// conn, err := net.ListenUDP(udpProto, lAddr)
-
-	// if err != nil {
-	// 	return packet, rtt, err
-	// }
-	//defer conn.Close()
 	if err := conn.SetDeadline(time.Now().Add(timeout)); err != nil {
 		return packet, rtt, err
 	}

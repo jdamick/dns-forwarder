@@ -11,7 +11,7 @@ default:
 	mv bin/dns-forwarder-${GOOS}_${GOARCH} bin/dns-forwarder
 
 define cross_target
-	env GOOS=$(1) GOARCH=$(2) go build -tags=gc_opt -tags=poll_opt  -ldflags="-s -w -X main.GitCommit=$(GITCOMMIT)" -o bin/dns-forwarder-$(1)_$(2) github.com/jdamick/dns-forwarder/bin
+	env GOOS=$(1) GOARCH=$(2) go build -tags=gc_opt -tags=poll_opt  -ldflags="-s -w -X dnsforwarder.GitCommit=$(GITCOMMIT)" -o bin/dns-forwarder-$(1)_$(2) github.com/jdamick/dns-forwarder/bin
 endef
 cross:
 	$(call cross_target,windows,386)
