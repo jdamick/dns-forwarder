@@ -24,7 +24,7 @@ cross:
 	$(call cross_target,darwin,arm64)
 
 test:
-	go test -v ./...
+	go test -v -count=1 ./...
 
 coverage:
 	go test -coverprofile=cover.out -covermode=atomic -race ./...; [ -f cover.out ] && cat cover.out >> coverage.txt

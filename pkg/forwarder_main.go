@@ -33,6 +33,12 @@ func setupLogging() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
+var (
+	createService = func(svc service.Interface, conf *service.Config) (service.Service, error) {
+		return service.New(svc, conf)
+	}
+)
+
 func ForwarderMain() {
 	setupLogging()
 
@@ -81,7 +87,7 @@ func ForwarderMain() {
 	}
 
 	dnsSrvr := &DNSForwarderService{configFile: *configFile}
-	s, err := service.New(dnsSrvr, svcConfig)
+	s, err := createService(dnsSrvr, svcConfig)
 	if err != nil {
 		log.Fatal().Err(err).Msg("service creation failed")
 	}
