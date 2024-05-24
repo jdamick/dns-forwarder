@@ -3,9 +3,11 @@ package dnsforwarder
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	plugins "github.com/jdamick/dns-forwarder/pkg/plugins"
 	"github.com/kardianos/service"
@@ -25,11 +27,19 @@ func init() {
 }
 
 func setupLogging() {
-	wr := diode.NewWriter(os.Stdout, 1000, 0, func(missed int) {
+	// console log is very impactful to performance, even using diode
+	consoleLog := os.Getenv("CONSOLE_LOG")
+	var output io.Writer
+	output = os.Stdout
+	if consoleLog != "" {
+		output = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+	}
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
+
+	wr := diode.NewWriter(output, 1000, 0, func(missed int) {
 		fmt.Printf("Logger Dropped %d messages", missed)
 	})
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: wr})
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(wr)
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
