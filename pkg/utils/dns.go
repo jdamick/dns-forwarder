@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	defaultMinTTL = 5 * time.Second
-	defaultCapTTL = 1 * time.Hour
+	DefaultMinTTL = 5 * time.Second
+	DefaultCapTTL = 1 * time.Hour
 )
 
 // DNS Utils
@@ -65,22 +65,44 @@ func Max[T constraints.Ordered](d1 T, d2 T) T {
 	return d1
 }
 
+func ConstrainTTL(ttl, min, cap time.Duration) time.Duration {
+	if ttl > cap {
+		return cap
+	}
+	if ttl < min {
+		return min
+	}
+	return ttl
+}
+
 func FindTTL(m *dns.Msg) time.Duration {
-	ttl := defaultMinTTL
+	ttl := time.Duration(0)
 
 	if len(m.Answer) == 0 && len(m.Ns) == 0 && len(m.Extra) == 0 {
 		return ttl
 	}
 
-	ttl = defaultCapTTL
+	ttlSet := false
 	for _, r := range m.Answer {
+		if !ttlSet {
+			ttl = time.Duration(r.Header().Ttl) * time.Second
+			ttlSet = true
+		}
 		ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 	}
 	for _, r := range m.Ns {
+		if !ttlSet {
+			ttl = time.Duration(r.Header().Ttl) * time.Second
+			ttlSet = true
+		}
 		ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 	}
 	for _, r := range m.Extra {
 		if r.Header().Rrtype != dns.TypeOPT {
+			if !ttlSet {
+				ttl = time.Duration(r.Header().Ttl) * time.Second
+				ttlSet = true
+			}
 			ttl = Min(ttl, time.Duration(r.Header().Ttl)*time.Second)
 		}
 	}

@@ -160,7 +160,7 @@ func (c *CachePlugin) Response(ctx context.Context, msg *dns.Msg) error {
 		return nil
 	}
 
-	ttl := utils.FindTTL(msg)
+	ttl := utils.ConstrainTTL(utils.FindTTL(msg), utils.DefaultMinTTL, utils.DefaultCapTTL)
 	if ttl == 0 {
 		return nil
 	}
