@@ -44,7 +44,7 @@ func TestForwarderServerPlugin(t *testing.T) {
 	assert.True(f.isPluginConfigured("test-server-1"))
 	assert.NoError(f.Start())
 
-	f.ResponseHandler(setupHandlerCtx(context.Background()), &dns.Msg{})
+	f.ResponseHandler(context.Background(), &dns.Msg{})
 
 	f.Stop()
 
@@ -53,8 +53,39 @@ func TestForwarderServerPlugin(t *testing.T) {
 	assert.Equal(1, tp.stopCalled)
 }
 
+func TestForwarderClientPlugin(t *testing.T) {
+	f := NewForwarder()
+	assert := assert.New(t)
+
+	tp := &testClientPlugin{t: t, name: "test-client-1"}
+	plugins.RegisterPlugin(tp)
+
+	clientPluginFound := false
+	for _, p := range plugins.GetClientPlugins() {
+		if p.Name() == "test-client-1" {
+			clientPluginFound = true
+			break
+		}
+	}
+	assert.True(clientPluginFound)
+
+	assert.NoError(f.Configure([]byte(`["test-client-1"]`)))
+	assert.True(f.isPluginConfigured("test-client-1"))
+	assert.NoError(f.Start())
+
+	f.QueryHandler(context.Background(), &dns.Msg{})
+
+	f.Stop()
+
+	assert.Equal(1, tp.startCalled, "start not called")
+	assert.Equal(1, tp.queryCalled, "query not called")
+	assert.Equal(1, tp.stopCalled, "stop not called")
+}
+
 // Mock Plugins
 ///////////////
+
+// Server Plugin
 
 type testServerPlugin struct {
 	t               *testing.T
@@ -103,6 +134,60 @@ func (t *testServerPlugin) StopServer(ctx context.Context) error {
 
 func (t *testServerPlugin) Response(ctx context.Context, msg *dns.Msg) error {
 	t.responseCalled++
+	assert.NotNil(t.t, ctx)
+	assert.NotNil(t.t, msg)
+	return nil
+}
+
+// Client Plugin
+
+type testClientPlugin struct {
+	t               *testing.T
+	name            string
+	helpCalled      int
+	configureCalled int
+	startCalled     int
+	stopCalled      int
+	queryCalled     int
+}
+
+func (t *testClientPlugin) Name() string {
+	if t.name != "" {
+		return t.name
+	}
+	return "unit-test-1"
+}
+
+// PrintHelp prints the configuration help for the plugin.
+func (t *testClientPlugin) PrintHelp(out io.Writer) {
+	t.helpCalled++
+	fmt.Fprintf(out, t.Name()+" help\n")
+}
+
+// Configure the plugin.
+func (t *testClientPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
+	t.configureCalled++
+	assert.NotNil(t.t, ctx)
+	assert.NotNil(t.t, config)
+	return nil
+}
+
+func (t *testClientPlugin) StartClient(ctx context.Context, handler plugins.Handler) error {
+	t.startCalled++
+	assert.NotNil(t.t, ctx)
+	assert.NotNil(t.t, handler)
+	return nil
+}
+
+// Stop the protocol plugin.
+func (t *testClientPlugin) StopClient(ctx context.Context) error {
+	t.stopCalled++
+	assert.NotNil(t.t, ctx)
+	return nil
+}
+
+func (t *testClientPlugin) Query(ctx context.Context, msg *dns.Msg) error {
+	t.queryCalled++
 	assert.NotNil(t.t, ctx)
 	assert.NotNil(t.t, msg)
 	return nil

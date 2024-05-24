@@ -150,6 +150,13 @@ func (f *Forwarder) ResponseHandler(ctx context.Context, msg *dns.Msg) (*dns.Msg
 
 func (f *Forwarder) Stop() {
 	ctx := context.Background()
+
+	for _, p := range plugins.GetClientPlugins() {
+		if f.configuredPlugins[p.Name()] != nil {
+			p.StopClient(ctx)
+		}
+	}
+
 	for _, p := range plugins.GetServerPlugins() {
 		if f.configuredPlugins[p.Name()] != nil {
 			p.StopServer(ctx)
