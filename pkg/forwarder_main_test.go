@@ -13,45 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type TestPlugin struct {
-	wg *sync.WaitGroup
-}
-
-func (t *TestPlugin) Name() string {
-	return "unit-test-1"
-}
-
-// PrintHelp prints the configuration help for the plugin.
-func (t *TestPlugin) PrintHelp(out io.Writer) {
-}
-
-// Configure the plugin.
-func (t *TestPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
-	if t.wg != nil {
-		t.wg.Done()
-	}
-	return nil
-}
-
-func createTestConfigFile() *os.File {
-	file, err := os.CreateTemp("", "dns-forwarder.toml")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Fprintf(file, `
-[unit-test-1]
-`)
-	file.Sync()
-	return file
-}
-
-func stopService(t *testing.T) {
-	p, err := os.FindProcess(os.Getpid())
-	assert.Nil(t, err)
-	err = p.Signal(os.Interrupt)
-	assert.Nil(t, err)
-}
-
 func TestForwarderMain(t *testing.T) {
 
 	var fs *fakeService
@@ -92,6 +53,65 @@ func TestForwarderMain(t *testing.T) {
 	wg.Wait()
 	assert.Equal(1, fs.runCalled)
 	assert.Equal(1, fs.stopCalled)
+}
+
+func TestForwarderHelp(t *testing.T) {
+	tp := &TestPlugin{name: "unit-test-help"}
+	plugins.RegisterPlugin(tp)
+	assert := assert.New(t)
+
+	args := osArgHolder()
+	defer args()
+	os.Args = []string{"dns-forwarder", "-listPlugins"}
+	ForwarderMain()
+	assert.Equal(1, tp.helpCalled)
+}
+
+// Test Mocks & Helpers
+///////////////////////
+
+func osArgHolder() func() {
+	args := os.Args
+	return func() { os.Args = args }
+}
+
+type TestPlugin struct {
+	wg         *sync.WaitGroup
+	name       string
+	helpCalled int
+}
+
+func (t *TestPlugin) Name() string {
+	if t.name != "" {
+		return t.name
+	}
+	return "unit-test-1"
+}
+
+// PrintHelp prints the configuration help for the plugin.
+func (t *TestPlugin) PrintHelp(out io.Writer) {
+	t.helpCalled++
+	fmt.Fprintf(out, t.Name()+" help\n")
+}
+
+// Configure the plugin.
+func (t *TestPlugin) Configure(ctx context.Context, config map[string]interface{}) error {
+	if t.wg != nil {
+		t.wg.Done()
+	}
+	return nil
+}
+
+func createTestConfigFile() *os.File {
+	file, err := os.CreateTemp("", "dns-forwarder.toml")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Fprintf(file, `
+[unit-test-1]
+`)
+	file.Sync()
+	return file
 }
 
 type fakeService struct {
