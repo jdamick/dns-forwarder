@@ -14,7 +14,7 @@ require (
 	github.com/miekg/dns v1.1.59
 	github.com/panjf2000/ants/v2 v2.9.1
 	github.com/panjf2000/gnet/v2 v2.5.2
-	github.com/rs/zerolog v1.32.0
+	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20221215174704-0915cd710c24
 	golang.org/x/sys v0.20.0
