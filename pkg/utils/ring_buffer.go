@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"runtime"
 	"sync/atomic"
 	"unsafe"
 
@@ -54,32 +55,47 @@ func NewRingBuffer[T any](size uint64) *RingBuffer[T] {
 	return r
 }
 
-func (r *RingBuffer[T]) Enqueue(val T) bool {
-	pos := atomic.LoadUint64(&r.queue)
-	n := &r.ring[pos&r.mask]
-	seq := atomic.LoadUint64(&n.pos)
+const attemptCap = 1_000
 
-	if diff := seq - pos; diff == 0 {
-		if atomic.CompareAndSwapUint64(&r.queue, pos, pos+1) {
-			n.val = val
-			atomic.StoreUint64(&n.pos, pos+1)
-			return true
+func (r *RingBuffer[T]) Enqueue(val T) (ok bool) {
+	for it := 0; it < attemptCap; it++ {
+		pos := atomic.LoadUint64(&r.queue)
+		n := &r.ring[pos&r.mask]
+		seq := atomic.LoadUint64(&n.pos)
+
+		if diff := seq - pos; diff == 0 {
+			if atomic.CompareAndSwapUint64(&r.queue, pos, pos+1) {
+				n.val = val
+				ok = true
+				atomic.StoreUint64(&n.pos, pos+1)
+				return
+			}
+		}
+		if it%3 == 0 {
+			runtime.Gosched()
 		}
 	}
 
-	return false
+	return
 }
 
 func (r *RingBuffer[T]) Dequeue() (val T, ok bool) {
-	pos := atomic.LoadUint64(&r.dequeue)
-	n := &r.ring[pos&r.mask]
-	seq := atomic.LoadUint64(&n.pos)
+	for it := 0; it < attemptCap; it++ {
+		pos := atomic.LoadUint64(&r.dequeue)
+		n := &r.ring[pos&r.mask]
+		seq := atomic.LoadUint64(&n.pos)
 
-	if diff := seq - (pos + 1); diff == 0 {
-		if atomic.CompareAndSwapUint64(&r.dequeue, pos, pos+1) {
-			val = n.val
-			ok = true
-			atomic.StoreUint64(&n.pos, pos+r.mask+1)
+		diff := seq - (pos + 1)
+		if diff == 0 {
+			if atomic.CompareAndSwapUint64(&r.dequeue, pos, pos+1) {
+				val = n.val
+				ok = true
+				atomic.StoreUint64(&n.pos, pos+r.mask+1)
+				return
+			}
+		}
+		if it%3 == 0 {
+			runtime.Gosched()
 		}
 	}
 
