@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/kardianos/service v1.2.2
-	github.com/mackerelio/go-osstat v0.2.4
+	github.com/mackerelio/go-osstat v0.2.5
 	github.com/maypok86/otter v1.2.1
 	github.com/miekg/dns v1.1.59
 	github.com/panjf2000/ants/v2 v2.9.1
