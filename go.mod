@@ -12,8 +12,8 @@ require (
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/maypok86/otter v1.2.1
 	github.com/miekg/dns v1.1.61
-	github.com/panjf2000/ants/v2 v2.9.1
-	github.com/panjf2000/gnet/v2 v2.5.3
+	github.com/panjf2000/ants/v2 v2.10.0
+	github.com/panjf2000/gnet/v2 v2.5.4
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20221215174704-0915cd710c24
