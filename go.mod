@@ -5,7 +5,7 @@ go 1.22.2
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/Eun/go-convert v1.2.12
-	github.com/VictoriaMetrics/metrics v1.34.0
+	github.com/VictoriaMetrics/metrics v1.34.1
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf
 	github.com/kardianos/service v1.2.2
