@@ -11,7 +11,7 @@ require (
 	github.com/kardianos/service v1.2.2
 	github.com/mackerelio/go-osstat v0.2.5
 	github.com/maypok86/otter v1.2.1
-	github.com/miekg/dns v1.1.61
+	github.com/miekg/dns v1.1.62
 	github.com/panjf2000/ants/v2 v2.10.0
 	github.com/panjf2000/gnet/v2 v2.5.7
 	github.com/rs/zerolog v1.33.0
@@ -37,7 +37,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/tools v0.22.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
