@@ -13,11 +13,11 @@ require (
 	github.com/maypok86/otter v1.2.1
 	github.com/miekg/dns v1.1.62
 	github.com/panjf2000/ants/v2 v2.10.0
-	github.com/panjf2000/gnet/v2 v2.5.7
+	github.com/panjf2000/gnet/v2 v2.5.9
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20221215174704-0915cd710c24
-	golang.org/x/sys v0.24.0
+	golang.org/x/sys v0.25.0
 )
 
 require (
@@ -38,7 +38,7 @@ require (
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/tools v0.22.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
