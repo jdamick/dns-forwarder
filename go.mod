@@ -13,7 +13,7 @@ require (
 	github.com/maypok86/otter v1.2.3
 	github.com/miekg/dns v1.1.62
 	github.com/panjf2000/ants/v2 v2.10.0
-	github.com/panjf2000/gnet/v2 v2.6.2
+	github.com/panjf2000/gnet/v2 v2.6.3
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/exp v0.0.0-20221215174704-0915cd710c24
